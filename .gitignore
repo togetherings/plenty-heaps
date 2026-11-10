@@ -7,3 +7,7 @@ art-src/
 dist/
 _site/
 __pycache__/
+
+# Made by the Kolibri test
+tests/kolibri/channel.json
+screenshots/

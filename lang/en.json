@@ -4,10 +4,10 @@
     "dir": "ltr"
   },
   "_notes": {
-    "title": "The game's name on every platform. Keep 'Plenty Heap' untranslated.",
+    "title": "The game's name on every platform. Keep 'Plenty Heaps' untranslated.",
     "description": "One or two sentences, shown in Kolibri, learning systems and on the web page.",
     "_game_words": "The game's own words are still in src/data/strings.js for now; they will move here."
   },
-  "title": "Plenty Heap",
+  "title": "Plenty Heaps",
   "description": "Grow crops on heaps, sell your harvest for cowries, and get to know the people of a seaside village. Your farm is saved."
 }

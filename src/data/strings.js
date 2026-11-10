@@ -88,7 +88,7 @@
     sign_village: 'NOTICE: Pa Sorie sells seeds at the market stall. Market prices are fair!',
 
     // ---- Character creation ----
-    create_title: 'Plenty Heap',
+    create_title: 'Plenty Heaps',
     create_subtitle: 'Make your farmer',
     create_body: 'Body',
     create_skin: 'Skin',
@@ -115,7 +115,7 @@
     hair_elder: 'Short grey',
 
     // ---- Intro (shown once in a new game) ----
-    intro_1: 'Welcome to Plenty Heap, your new farm by the sea!',
+    intro_1: 'Welcome to Plenty Heaps, your new farm by the sea!',
     intro_2: 'Make heaps with your hoe, plant seeds, and sell your harvest in the shipping crate for cowries.',
     intro_keys: 'Keys: arrows or WASD to move. SPACE to use or talk. 1-9 / Q E to pick an item. X to close.',
     intro_touch: 'Use the pad to move, A to use or talk, B to close. Tap an item to pick it.',

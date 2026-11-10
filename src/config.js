@@ -9,11 +9,11 @@
 
   FS.Config = {
     // ---- Identity -----------------------------------------------------------
-    TITLE: 'Plenty Heap',
+    TITLE: 'Plenty Heaps',
     // Used as the localStorage key prefix, so two different games on the same
     // device never overwrite each other's saves. DON'T change this after
     // release, or browser-stored saves would be lost.
-    STORAGE_KEY: 'plentyheap.save',
+    STORAGE_KEY: 'plentyheaps.save',
 
     // ---- Screen -------------------------------------------------------------
     // The canvas is 640x360 and the WORLD camera is zoomed 2x, so the map is

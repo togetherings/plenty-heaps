@@ -1,4 +1,4 @@
-# Plenty Heap
+# Plenty Heaps
 
 A 16-bit-style farming game set in a coastal West African village, built with **Phaser 3** and
 [EduGame Kit](https://github.com/togetherings/edugame-kit). It's a **Saved Game**: each learner's

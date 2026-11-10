@@ -1,4 +1,4 @@
-# Plenty Heap — Design Document
+# Plenty Heaps — Design Document
 
 The record of what has been decided, and what is still open. Read this at the
 start of any work session; update it whenever a decision changes.
@@ -9,7 +9,7 @@ start of any work session; update it whenever a decision changes.
 
 ## 1. The game in one paragraph
 
-**Plenty Heap** is a 16-bit-style farming and life game, in the spirit of
+**Plenty Heaps** is a 16-bit-style farming and life game, in the spirit of
 Harvest Moon, set in a coastal West African village. The player farms, sells
 their harvest, and gets to know the villagers; later they will also fish,
 tend trees and animals, and explore. It is built for learners using
@@ -18,7 +18,8 @@ tend trees and animals, and explore. It is built for learners using
 
 **The name** comes from *heaps*, the raised mounds of tilled earth that crops
 are planted in (as taught in "Agric" at school), and from *plenty*. In the
-game, the hoe turns ground into heaps.
+game, the hoe turns ground into heaps. Krio wouldn't add the plural *s*, but
+the name mixes Krio and English anyway, and "Plenty Heaps" reads better.
 
 ## 2. Setting and culture
 

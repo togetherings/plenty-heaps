@@ -97,7 +97,7 @@ def over(base, top):
 
 # ------------------------------------------------------------------ drawn art
 def heap(wet):
-    """A planting heap (mound). Tilling makes these - hence 'Plenty Heap'."""
+    """A planting heap (mound). Tilling makes these - hence 'Plenty Heaps'."""
     im = blank()
     d = ImageDraw.Draw(im)
     body = PAL['dkbrown'] if wet else PAL['brown']
