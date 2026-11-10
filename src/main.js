@@ -73,17 +73,18 @@
   // or leaving the resource in Kolibri fires "pagehide" (and only then hides
   // the page): save there, once, and not again after.
   //
-  // With EduGame Kit's helper, this pagehide listener must stay ahead of the
-  // helper's own (which ends the SCORM session). It is: it's added now, and
-  // the helper adds its listener later, when EduGame.ready() connects.
+  // With EduGame Kit's helper, the last save goes in its "leave" event, which
+  // runs on pagehide just before the helper ends the SCORM session.
   let closing = false;
-  document.addEventListener('visibilitychange', function () {
-    if (document.hidden && !closing && FS.Session.state) FS.Session.save();
-  });
-  window.addEventListener('pagehide', function () {
+  function lastSave() {
     if (closing) return;
     closing = true;
     if (FS.Session.state) FS.Session.save();
     FS.Session.finish();
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden && !closing && FS.Session.state) FS.Session.save();
   });
+  if (window.EduGame) window.EduGame.on('leave', lastSave);
+  else window.addEventListener('pagehide', lastSave);
 })(FarmSim);

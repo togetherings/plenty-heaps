@@ -43,7 +43,10 @@
     DAY_START_MIN: 6 * 60,             // 06:00
     DAY_END_MIN: 24 * 60,              // 24:00 -> player passes out
     NIGHT_START_MIN: 18 * 60,          // screen starts to darken
-    AUTOSAVE_EVERY_MIN: 120,           // mid-day autosave every 2 game hours
+    // Save every few real seconds while playing (when something changed). In
+    // Kolibri, only what reached it before the learner leaves the resource is
+    // kept: a save made as the page closes arrives too late there.
+    SAVE_EVERY_MS: 5000,
 
     // ---- Calendar -----------------------------------------------------------
     // Two seasons. The game starts at the beginning of the rainy season, which

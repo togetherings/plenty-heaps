@@ -67,7 +67,7 @@
       // Ignore warps for a moment after arriving so the player can't bounce
       // straight back through a door they spawned next to.
       this.warpsArmedAt = this.time.now + 400;
-      this.lastAutosave = state.time;
+      this.saveTimer = 0;
 
       // Save after moving between areas (cheap, and protects progress).
       if (this.arrivedByWarp) FS.Session.save();
@@ -315,16 +315,17 @@
       this.player.anims.play('char-player-walk-' + this.facing, true);
     }
 
-    /** Advance game time; autosave; pass out at midnight. */
+    /** Advance game time; save every few seconds; pass out at midnight. */
     runClock(delta, state) {
       this.minuteTimer += delta;
       while (this.minuteTimer >= C.MS_PER_GAME_MINUTE) {
         this.minuteTimer -= C.MS_PER_GAME_MINUTE;
         state.time++;
       }
-      if (state.time - this.lastAutosave >= C.AUTOSAVE_EVERY_MIN) {
-        this.lastAutosave = state.time;
-        FS.Session.save();
+      this.saveTimer += delta;
+      if (this.saveTimer >= C.SAVE_EVERY_MS) {
+        this.saveTimer = 0;
+        FS.Session.saveIfChanged();
       }
       if (state.time >= C.DAY_END_MIN) this.sleep(true);
     }
