@@ -54,7 +54,11 @@ On GitHub, every push and pull request runs the **Build** workflow, which must p
 passed") before anything reaches `main`. It runs:
 1. the game's tests,
 2. `edugame check`,
-3. `edugame build`.
+3. `edugame build`,
+4. **Real Kolibri**: EduGame Kit's `edugame kolibri-test` adds the zip to a channel in a real
+   Kolibri and plays it in Learn as a learner (the steps are in `tests/kolibri_play.py`): the
+   save must reach Kolibri, fit SCORM 1.2, complete the activity and come back next time.
+   Screenshots are in the run's **Artifacts** (kolibri-screenshots).
 
 The zips are in the run's **Artifacts** (Actions tab > the run > game-zips). For a release, draft
 one in **Releases** with a tag that matches `version` in `edugame.json` (like `v0.1.0`); the zips
@@ -92,6 +96,7 @@ src/
   scenes/               Boot, Create (character), World (any area), UI; art helpers
   main.js               waits for the kit's helper, starts Phaser, saves when the page closes
 tests/run-tests.js      automated checks
+tests/kolibri_play.py   how to play in the real-Kolibri test
 dev/scorm-test.html     pretend learning system
 tools/
   build_assets.py       art-src/ -> assets/ (needs Python 3 + Pillow and the art packs)
