@@ -41,6 +41,20 @@ def game_frame(page, timeout=90):
     return None
 
 
+def describe_frames(page):
+    """What's in each frame, for working out why the game wasn't found."""
+    for f in page.frames:
+        try:
+            d = f.evaluate("""() => ({title: document.title, FarmSim: typeof FarmSim, EduGame: typeof EduGame,
+                Phaser: typeof Phaser, API: typeof window.API, parentAPI: (function(){try{return typeof parent.API}catch(e){return 'blocked'}})(),
+                iframes: document.querySelectorAll('iframe').length, canvas: document.querySelectorAll('canvas').length,
+                scripts: Array.prototype.map.call(document.scripts, function (x) { return x.src || '(inline)'; }).slice(0, 8),
+                body: (document.body ? document.body.innerHTML : '').slice(0, 400)})""")
+        except Exception as e:
+            d = "can't read: %s" % e
+        print("       frame %s\n         %s" % (f.url, d), flush=True)
+
+
 def scenes(frame):
     return frame.evaluate("FarmSim.game.scene.getScenes(true).map(function (s) { return s.scene.key; })")
 
@@ -88,6 +102,9 @@ def main(base, shots):
         browser = p.chromium.launch()
         page = browser.new_page(viewport={"width": 1280, "height": 800})
         page.on("pageerror", lambda e: errors.append(str(e)))
+        # For working out problems: every failed file and every console message, in the log.
+        page.on("response", lambda r: r.status >= 400 and print("       HTTP %s %s" % (r.status, r.url), flush=True))
+        page.on("console", lambda m: print("       console %s: %s" % (m.type, m.text[:300]), flush=True))
         page.on("console", lambda m: m.type == "error" and "FarmSim" in m.text and errors.append(m.text))
 
         if not check(sign_in(page, base, info), "signed in as the learner"):
@@ -98,7 +115,7 @@ def main(base, shots):
         frame = open_resource(page, base, info["node_id"])
         page.screenshot(path=os.path.join(shots, "1-opened.png"))
         if frame is None:
-            print("       frames: %s" % [f.url for f in page.frames], flush=True)
+            describe_frames(page)
         check(frame is not None, "the game opened in Learn")
         if frame is None:
             return finish(browser, errors)
