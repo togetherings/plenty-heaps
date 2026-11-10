@@ -4315,5 +4315,17 @@
     }
    ]
   }
+ ],
+ "properties": [
+  {
+   "name": "id",
+   "type": "int",
+   "value": 1
+  },
+  {
+   "name": "outdoor",
+   "type": "bool",
+   "value": true
+  }
  ]
 }

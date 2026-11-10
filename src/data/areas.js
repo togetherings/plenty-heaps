@@ -1,17 +1,17 @@
 /**
  * areas.js
  * ========
- * Every place the player can be. Each area is one Tiled map.
+ * Every place the player can be. Each area is one map in maps-src/ (a .tmj
+ * file, made with the map maker: python tools/map_maker.py). The list comes from
+ * src/data/maps.js, which the map maker builds; each map's own properties say:
  *
- *   id       permanent save ID (0-15), used to remember where the player is
- *            during a mid-day save.
- *   map      name of the map in FarmSim.Maps (= the .tmj file name).
+ *   id       permanent save ID (0-63), used to remember where the player is
+ *            during a mid-day save. Never reuse the id of a removed map.
+ *   key      the map's file name (farm.tmj -> "farm").
  *   outdoor  outdoor areas show rain and get darker at night.
  *
- * TO ADD AN AREA: make the map in Tiled (copy an existing .tmj as a start),
- * run `node tools/build-maps.js`, add a <script> tag for it in index.html,
- * add an entry below, and add a "warp" object in another map that leads to
- * it. See README.md for details.
+ * An outside area and the rooms of its buildings are two maps: the outside, and
+ * one "interiors" map holding every room, each marked by a "room" object.
  *
  * MAP OBJECT TYPES the game understands (set as the object's "Class"/"Type"
  * in Tiled, on the layer named "objects"):
@@ -27,19 +27,21 @@
  *             facing.
  *   critter   an animal that wanders nearby (decoration, not saved).
  *             Property: kind = crab / hen / chick (see BootScene CRITTERS).
+ *   room      a room of an interiors map: the camera stays inside the room
+ *             the player is in, so the other rooms are never seen.
  *
  * MAP LAYERS: ground, decor (drawn under characters), above (drawn over
- * them: roofs, tree tops) and objects. Tiles with the "collides" property
- * block movement on any of the tile layers.
+ * them: roofs, tree tops), collision (optional, never drawn) and objects.
+ * Tiles with the "collides" property block movement on any of the tile
+ * layers. The collision layer changes single squares: its "block" tile blocks
+ * a square, its "open" tile lets the player walk on a square whatever is there.
  */
 (function (FS) {
   'use strict';
 
-  FS.Areas = FS.makeRegistry('Areas', [
-    { id: 0, key: 'house',   map: 'house',   outdoor: false },
-    { id: 1, key: 'farm',    map: 'farm',    outdoor: true  },
-    { id: 2, key: 'village', map: 'village', outdoor: true  }
-  ], 15);
+  FS.Areas = FS.makeRegistry('Areas', (FS.MapList || []).map(function (m) {
+    return { id: m.id, key: m.key, map: m.key, outdoor: !!m.outdoor };
+  }), 63);
 
   // Where a brand-new game starts and where the player wakes up each morning.
   FS.Areas.HOME = { area: 'house', spawn: 'bed_spawn' };
@@ -80,6 +82,29 @@
       if (FS.Areas.objType(objs[i]) === type && (name === undefined || objs[i].name === name)) return objs[i];
     }
     return null;
+  };
+
+  /** The rooms of an interiors map, in pixels: [{name, x, y, width, height}] (none outside). */
+  FS.Areas.rooms = function (mapKey) {
+    return FS.Areas.objects(mapKey).filter(function (o) { return FS.Areas.objType(o) === 'room'; })
+      .map(function (o) { return { name: o.name, x: o.x, y: o.y, width: o.width, height: o.height }; });
+  };
+
+  /**
+   * The collision layer's changes, as {block: [[x, y]...], open: [[x, y]...]}.
+   * Its tiles come from the "collision" tileset: the first blocks, the second opens.
+   */
+  FS.Areas.collision = function (mapKey) {
+    const map = FS.Maps[mapKey], out = { block: [], open: [] };
+    const layer = map.layers.filter(function (l) { return l.type === 'tilelayer' && l.name === 'collision'; })[0];
+    const ts = (map.tilesets || []).filter(function (t) { return t.name === 'collision'; })[0];
+    if (!layer || !ts) return out;
+    for (let i = 0; i < layer.data.length; i++) {
+      const g = layer.data[i] - ts.firstgid;
+      if (g === 0) out.block.push([i % map.width, Math.floor(i / map.width)]);
+      else if (g === 1) out.open.push([i % map.width, Math.floor(i / map.width)]);
+    }
+    return out;
   };
 
   /** The farmland rectangle, in tiles: {col, row, cols, rows}. */

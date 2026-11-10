@@ -96,6 +96,27 @@
         this.aboveLayer.setCollisionByProperty({ collides: true });
       }
 
+      // The collision layer (optional): squares blocked or opened one by one,
+      // whatever tiles are there. Blocked squares go on an invisible layer.
+      const changes = FS.Areas.collision(this.area.map);
+      this.blockedLayer = null;
+      if (changes.block.length) {
+        this.blockedLayer = map.createBlankLayer('blocked', tileset).setVisible(false);
+        changes.block.forEach(function (c) { this.blockedLayer.putTileAt(1, c[0], c[1]); }, this);
+        this.blockedLayer.setCollision(1);
+      }
+      const tileLayers = [this.groundLayer, this.decorLayer, this.aboveLayer];
+      changes.open.forEach(function (c) {
+        tileLayers.forEach(function (l) {
+          const t = l && l.getTileAt(c[0], c[1]);
+          if (t && t.collides) { t.resetCollision(false); l.calculateFacesAt(c[0], c[1]); }
+        });
+      });
+
+      // Rooms (interiors maps): the camera keeps to the room the player is in.
+      this.rooms = FS.Areas.rooms(this.area.map);
+      this.room = null;
+
       // The field: two runtime layers for soil and plants, drawn from state.
       const plotObj = FS.Areas.findObject(this.area.map, 'farmland');
       this.plot = plotObj ? FS.Areas.farmland() : null;
@@ -213,6 +234,7 @@
       this.physics.add.collider(p, this.groundLayer);
       this.physics.add.collider(p, this.decorLayer);
       if (this.aboveLayer) this.physics.add.collider(p, this.aboveLayer);
+      if (this.blockedLayer) this.physics.add.collider(p, this.blockedLayer);
       this.physics.add.collider(p, this.npcGroup);
       this.warpZones.forEach(function (zone) {
         this.physics.add.overlap(p, zone, function () { this.tryWarp(zone); }, null, this);
@@ -229,7 +251,7 @@
     /** Is a tile free to stand on (inside the map and not blocked)? */
     isWalkableTile(tx, ty) {
       if (tx < 0 || ty < 0 || tx >= this.map.width || ty >= this.map.height) return false;
-      const layers = [this.groundLayer, this.decorLayer, this.aboveLayer];
+      const layers = [this.groundLayer, this.decorLayer, this.aboveLayer, this.blockedLayer];
       for (let i = 0; i < layers.length; i++) {
         if (!layers[i]) continue;
         const t = layers[i].getTileAt(tx, ty);
@@ -259,16 +281,34 @@
     setupCamera() {
       const cam = this.cameras.main;
       cam.setZoom(C.WORLD_ZOOM);
+      cam.setBackgroundColor('#101014');
+      this.frameCamera(this.roomAtPlayer() || { x: 0, y: 0, width: this.map.widthInPixels, height: this.map.heightInPixels });
+      cam.fadeIn(250, 0, 0, 0);
+    }
+
+    /** The room (of an interiors map) the player's feet are in, or null. */
+    roomAtPlayer() {
+      const f = this.feet();
+      for (let i = 0; i < this.rooms.length; i++) {
+        const r = this.rooms[i];
+        if (f.x >= r.x && f.x < r.x + r.width && f.y >= r.y && f.y < r.y + r.height) return r;
+      }
+      return null;
+    }
+
+    /** Show only this rectangle: centred if it fits on screen, else followed. */
+    frameCamera(rect) {
+      const cam = this.cameras.main;
       const viewW = cam.width / cam.zoom, viewH = cam.height / cam.zoom;
-      const mapW = this.map.widthInPixels, mapH = this.map.heightInPixels;
-      if (mapW <= viewW && mapH <= viewH) {
-        cam.centerOn(mapW / 2, mapH / 2);     // small room: just centre it
+      this.room = this.rooms.length ? rect : null;
+      if (rect.width <= viewW && rect.height <= viewH) {
+        cam.stopFollow();
+        cam.removeBounds();
+        cam.centerOn(rect.x + rect.width / 2, rect.y + rect.height / 2);   // small room: just centre it
       } else {
-        cam.setBounds(0, 0, mapW, mapH);
+        cam.setBounds(rect.x, rect.y, rect.width, rect.height);
         cam.startFollow(this.player, true);
       }
-      cam.setBackgroundColor('#101014');
-      cam.fadeIn(250, 0, 0, 0);
     }
 
     // ================================================================== UPDATE
@@ -288,6 +328,10 @@
       this.player.setDepth(4 + this.feet().y / 10000);
       this.updateCritters(delta);
       if (!this.transitioning) this.updateSavedPosition();
+      if (this.rooms.length) {
+        const room = this.roomAtPlayer();
+        if (room && room !== this.room) this.frameCamera(room);
+      }
       this.updateCursor();
     }
 

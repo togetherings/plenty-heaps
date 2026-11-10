@@ -22,6 +22,7 @@
     "tools/*",
     "tests/*",
     "dev/*",
-    "art-src/*"
+    "art-src/*",
+    "docs/*"
   ]
 }
