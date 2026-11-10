@@ -11,7 +11,7 @@
  "tilewidth": 16,
  "tileheight": 16,
  "nextlayerid": 5,
- "nextobjectid": 5,
+ "nextobjectid": 6,
  "layers": [
   {
    "id": 1,
@@ -852,6 +852,18 @@
        "value": "from_house"
       }
      ]
+    },
+    {
+     "id": 5,
+     "name": "home",
+     "type": "room",
+     "x": 0,
+     "y": 0,
+     "width": 320,
+     "height": 192,
+     "rotation": 0,
+     "visible": true,
+     "properties": []
     }
    ]
   }
@@ -1351,6 +1363,18 @@
      ]
     }
    ]
+  }
+ ],
+ "properties": [
+  {
+   "name": "id",
+   "type": "int",
+   "value": 0
+  },
+  {
+   "name": "outdoor",
+   "type": "bool",
+   "value": false
   }
  ]
 }

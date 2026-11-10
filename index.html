@@ -27,7 +27,8 @@
 
   <!--
     LOAD ORDER MATTERS. Each file adds itself to the global FarmSim object.
-    When you add a file (e.g. a new map), add a <script> tag here.
+    When you add a code file, add a <script> tag here. (Maps are all in
+    src/data/maps.js, which the map maker builds.)
   -->
 
   <!-- EduGame Kit's save helper. edugame-config.js and edugame.js are made by
@@ -55,13 +56,10 @@
   <script src="src/data/flags.js"></script>
   <script src="src/data/currencies.js"></script>
   <script src="src/data/appearance.js"></script>
+  <!-- Every map and the list of areas (built by the map maker: tools/map_maker.py) -->
+  <script src="src/data/maps.js"></script>
   <script src="src/data/areas.js"></script>
   <script src="src/data/strings.js"></script>
-
-  <!-- Maps (generated from maps-src/*.tmj by tools/build-maps.js) -->
-  <script src="src/data/maps/house.js"></script>
-  <script src="src/data/maps/farm.js"></script>
-  <script src="src/data/maps/village.js"></script>
 
   <!-- Game rules and saving (no Phaser needed) -->
   <script src="src/core/gameState.js"></script>

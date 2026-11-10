@@ -53,7 +53,7 @@ the name mixes Krio and English anyway, and "Plenty Heaps" reads better.
 | Screen | 640×360 canvas; world camera zoomed 2× (320×180 world) | Pixel-art look with readable text |
 | Tiles | 16×16 | Matches the art packs and Tiled |
 | Characters | **16×32** (3 frames × 4 directions) | From the Petixel art packs |
-| Maps | Tiled `.tmj` files → converted to scripts | Editable in Tiled; no network loading |
+| Maps | Tiled-format `.tmj` files, made with the game's own map maker → one generated script | Easy linking of maps and rooms; still opens in Tiled; no network loading |
 | Kit | **EduGame Kit**, as a **Saved Game** (no scores) | Same zip for Kolibri, SCORM LMSs, RACHEL, Kiwix; GitHub builds it |
 | Saving | Through the kit's helper (`edugame.js`): SCORM `suspend_data`, Kolibri Games, or the browser | The helper picks the platform; the game never touches SCORM itself |
 | Package | `edugame build`: one zip for every platform | Built and checked by GitHub Actions |
@@ -65,7 +65,9 @@ game has been checked with both the WebGL and the Canvas renderer.
 
 ## 4. Saving
 
-- **Format:** bit-packed, base64url, 16-bit checksum. Currently **version 2**.
+- **Format:** bit-packed, base64url, 16-bit checksum. Currently **version 3**
+  (the area takes 6 bits: up to 64 maps, each with a permanent id in its map
+  file; versions 1 and 2 still load).
 - **Size:** worst case **502 of 4096 characters (12%)**; a new game is about
   90. Even 64 villagers, 255 flags, 31 slots, 15 currencies and 255 outfits
   fit in about 800.

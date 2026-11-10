@@ -25,15 +25,34 @@ jobs:
     name: Kit
     uses: togetherings/edugame-kit/.github/workflows/game.yml@v0.3.0
     with:
-      # The game's own tests: saves, farming, seasons, maps (no Phaser needed).
-      tests: node tests/run-tests.js
+      # The game's own tests (saves, farming, seasons, maps; no Phaser needed), and the map
+      # maker's checks: every warp leads somewhere, spawns aren't in walls, maps.js is up to date.
+      tests: node tests/run-tests.js && python tools/map_maker.py --check && python tests/test_map_maker.py
+
+  # The map maker (tools/map_maker.py) in a browser: paints, adds an interior, saves, plays it.
+  map-maker:
+    name: Map maker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: pip install playwright && python -m playwright install --with-deps chromium
+      - run: python tests/map_maker_browser.py screenshots
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: map-maker-screenshots
+          path: screenshots
+          if-no-files-found: ignore
 
   # The name the "Protect main" ruleset asks for (see docs/platforms/GITHUB_PAGES.md in the
   # kit): it passes only when every job above passed. Add new jobs to "needs".
   checks-passed:
     name: Checks passed
     if: always()
-    needs: [kit]
+    needs: [kit, map-maker]
     runs-on: ubuntu-latest
     steps:
       - name: Every check passed

@@ -18,11 +18,12 @@
  *        ones (old saves must always load). upgrade() then fills in anything
  *        an older save didn't have.
  *
- * LAYOUT (bits per field). Fields marked [v2] were added in version 2.
+ * LAYOUT (bits per field). Fields marked [v2] were added in version 2; version 3
+ * gave the area 6 bits (64 areas) instead of 4.
  *   version 8 | seed 32 | day 16 | time 11
  *   v1 only: money 24
  *   shipped 20 | energy 7
- *   hasPos 1 [area 4 | x 8 | y 8 | facing 2]
+ *   hasPos 1 [area 6 (v1, v2: 4) | x 8 | y 8 | facing 2]
  *   selected 4 | slots 5 | per slot: itemId 8 [qty 7 if itemId > 0]
  *   farmCols 6 | farmRows 6 | per tile: tilled 1 [watered 1 | crop 5 [growth 5 if crop > 0]]
  *   npcCount-1 6 | per npc: friendship 10 | talked 1 | gifted 1
@@ -38,7 +39,9 @@
   'use strict';
 
   const BP = FS.BitPack;
-  const VERSION = 2;
+  const VERSION = 3;
+  /** Bits for an area id in each version: 64 areas from version 3 (FS.Areas.maxId). */
+  function areaBits(version) { return version >= 3 ? 6 : 4; }
 
   // Largest value each field can hold. Game code clamps to these.
   const LIMITS = {
@@ -63,7 +66,7 @@
     // Player position (only during a mid-day save)
     w.writeBool(!!state.pos);
     if (state.pos) {
-      w.write(FS.Areas.get(state.pos.area).id, 4);
+      w.write(FS.Areas.get(state.pos.area).id, areaBits(VERSION));
       w.write(clamp(state.pos.x, LIMITS.tileXY), 8);
       w.write(clamp(state.pos.y, LIMITS.tileXY), 8);
       w.write(Math.max(0, FS.State.FACINGS.indexOf(state.pos.facing)), 2);
@@ -139,13 +142,13 @@
 
     const r = new BP.BitReader(body);
     const version = r.read(8);
-    if (version === 1 || version === 2) return upgrade(read(r, version));
+    if (version >= 1 && version <= VERSION) return upgrade(read(r, version));
     const e = new Error('unknown save version ' + version + ' (made by a newer game?)');
     e.kind = 'newer';      // see Session.problem
     throw e;
   }
 
-  /** Read versions 1 and 2 (they share most of the layout). */
+  /** Read versions 1 to 3 (they share most of the layout). */
   function read(r, version) {
     const A = FS.Appearance;
     const s = {};
@@ -159,7 +162,7 @@
 
     s.pos = null;
     if (r.readBool()) {
-      const area = FS.Areas.byId(r.read(4));
+      const area = FS.Areas.byId(r.read(areaBits(version)));
       const x = r.read(8), y = r.read(8);
       const facing = FS.State.FACINGS[r.read(2)];
       // If the area was removed in an update, the player just wakes up at home.

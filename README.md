@@ -35,6 +35,10 @@ Add these to the address:
 | `?debug` | Collision boxes, plus where it saves and how big the save is |
 | `?touch` | Touch controls even with a mouse |
 | `?canvas` | The Canvas renderer, as on phones without WebGL |
+| `?at=farm,10,12` | Start on that square of that map with a ready-made character, saving nothing (the map maker's **Play here**) |
+
+**Maps:** `python tools/map_maker.py` opens the map maker in your browser. See
+[docs/MAP_MAKER.md](docs/MAP_MAKER.md).
 
 `dev/scorm-test.html` is a pretend learning system that shows the SCORM data live.
 
@@ -99,21 +103,25 @@ DESIGN.md               design decisions - read first
 icon.svg                the game's icon
 lib/phaser.min.js       Phaser 3.90.0
 assets/                 the game's images (built by tools/build_assets.py)
-maps-src/               Tiled maps (.tmj) - edit these in Tiled; tileset.json is generated
+maps-src/               the maps (.tmj, Tiled's format) - edit them with the map maker;
+                        tileset.json is generated; tile-settings.json and stamps.json are the map maker's
 src/
   namespace.js, config.js     the FarmSim object; tuning values
   core/                 no Phaser: game rules, saving, the palette swap (tested in Node)
   data/                 items, crops, villagers, flags, areas, words, money, looks;
-                        tiles.js and maps/ are generated
+                        tiles.js and maps.js are generated
   scenes/               Boot, Create (character), World (any area), UI; art helpers
   ui/saveProblem.js     the message when a saved farm can't be loaded
   main.js               waits for the kit's helper, starts Phaser, saves when the page closes
 tests/run-tests.js      automated checks
+tests/test_map_maker.py, map_maker_browser.py   the map maker's checks, and the map maker in a browser
 tests/kolibri_play.py   how to play in the real-Kolibri test
+docs/MAP_MAKER.md       how to use the map maker
 dev/scorm-test.html     pretend learning system
 tools/
   build_assets.py       art-src/ -> assets/ (needs Python 3 + Pillow and the art packs)
-  build-maps.js         maps-src/*.tmj -> src/data/maps/*.js
+  map_maker.py          the map maker (python tools/map_maker.py), and maps-src/ -> src/data/maps.js
+  map-maker/            the map maker's page
   generate_starter_maps.py   made the first maps (don't re-run once maps are edited)
 ```
 
@@ -129,7 +137,7 @@ image-generation AI**, and they can't be shared as packs.
 - **The original packs are not in this repository**, which is public. Keep them on your own
   computer in `art-src/petixel/`. `.gitignore` keeps that folder out of git.
 - `assets/` holds only the images the game uses, built from the packs by
-  `tools/build_assets.py`. Run it, then `node tools/build-maps.js`, after changing art.
+  `tools/build_assets.py`. Run it, then `python tools/map_maker.py --build`, after changing art.
 - Add new tiles at the end of the list in `build_assets.py` so existing maps keep working.
 
 Characters are made by a palette swap: one body sheet and one hair sheet give every skin tone,
@@ -137,9 +145,10 @@ hair colour and outfit (`src/data/appearance.js`, `src/core/charRecolor.js`).
 
 ## How to add things
 
-- **An area:** make a map in Tiled from an existing `.tmj` (layers `ground`, `decor`, `above`,
-  `objects`), run `node tools/build-maps.js`, add its `<script>` to `index.html` and an entry in
-  `src/data/areas.js`. The object types are listed at the top of `areas.js`.
+- **An area, a building's rooms, or changes to a map:** use the map maker,
+  `python tools/map_maker.py` (see [docs/MAP_MAKER.md](docs/MAP_MAKER.md)). It saves the maps in
+  `maps-src/` and builds `src/data/maps.js`; every map is an area, with the id and settings saved in
+  the map. The object types are listed at the top of `src/data/areas.js`.
 - **A crop:** its pictures in `build_assets.py` (`CROPS`), an entry in `src/data/crops.js`, seed
   and produce in `src/data/items.js`, names in `src/data/strings.js`.
 - **A villager:** an entry with a `look` in `src/data/npcs.js`, lines in `strings.js`, and an `npc`

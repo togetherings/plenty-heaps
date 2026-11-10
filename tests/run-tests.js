@@ -22,8 +22,8 @@ const SRC = path.join(__dirname, '..', 'src');
   'namespace.js', 'config.js',
   'core/bitpack.js', 'core/rng.js',
   'data/registry.js', 'data/tiles.js', 'data/crops.js', 'data/items.js',
-  'data/npcs.js', 'data/flags.js', 'data/currencies.js', 'data/appearance.js', 'data/areas.js', 'data/strings.js',
-  'data/maps/house.js', 'data/maps/farm.js', 'data/maps/village.js',
+  'data/npcs.js', 'data/flags.js', 'data/currencies.js', 'data/appearance.js',
+  'data/maps.js', 'data/areas.js', 'data/strings.js',
   'core/gameState.js', 'core/farming.js', 'core/day.js',
   'core/saveCodec.js', 'core/storage.js', 'core/session.js', 'core/charRecolor.js'
 ].forEach(f => require(path.join(SRC, f)));
@@ -411,6 +411,28 @@ test('a save that cannot be read back is never written', () => {
     assert.strictEqual(st.text, kept, 'the last good save is kept');
     assert.strictEqual(FS.Session.lastSaveError, 'a bug in the codec');
   } finally { FS.SaveCodec.decode = decode; }
+});
+
+test('area ids up to 63 fit in the save (format 3)', () => {
+  assert.strictEqual(FS.Areas.maxId, 63);
+  const st = new FS.Storage.MemoryStorage();
+  FS.Session.start({ storage: st });
+  const fake = { id: 63, key: 'far_away', map: 'farm', outdoor: true };
+  const byId = FS.Areas.byId, get = FS.Areas.get;
+  FS.Areas.byId = id => (id === 63 ? fake : byId(id));
+  FS.Areas.get = key => (key === 'far_away' ? fake : get(key));
+  try {
+    FS.Session.state.pos = { area: 'far_away', x: 200, y: 31, facing: 'left' };
+    const back = FS.SaveCodec.decode(FS.SaveCodec.encode(FS.Session.state));
+    assert.deepStrictEqual(back.pos, { area: 'far_away', x: 200, y: 31, facing: 'left' });
+  } finally { FS.Areas.byId = byId; FS.Areas.get = get; }
+});
+
+test('every map is an area with its own id, and the house is a room', () => {
+  assert.deepStrictEqual(FS.MapList.map(m => m.key).sort(), Object.keys(FS.Maps).sort());
+  assert.strictEqual(new Set(FS.MapList.map(m => m.id)).size, FS.MapList.length);
+  assert.strictEqual(FS.Areas.rooms('house').length, 1);
+  assert.deepStrictEqual(FS.Areas.rooms('farm'), []);
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed\n');

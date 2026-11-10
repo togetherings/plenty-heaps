@@ -9,6 +9,8 @@
  *   ?touch   show the on-screen touch controls even with a mouse
  *   ?canvas  use the Canvas renderer instead of WebGL, to check how the game
  *            looks and runs on devices without WebGL
+ *   ?at=farm,10,12   try a map: start there (map key, tile x, y), with a ready-made
+ *            character and nothing saved (the map maker's "Play here" button)
  */
 (function (FS) {
   'use strict';
@@ -51,7 +53,9 @@
 
   function start(edugameInfo) {
     // Load the save (or start a new game) BEFORE Phaser starts.
-    FS.Session.start({ reset: has('reset'), edugameInfo: edugameInfo });
+    const at = new URLSearchParams(window.location.search).get('at');
+    if (at) tryMapAt(at);
+    else FS.Session.start({ reset: has('reset'), edugameInfo: edugameInfo });
     if (FS.Session.problem) FS.SaveProblem.show();
 
     FS.game = new Phaser.Game({
@@ -72,6 +76,18 @@
       // Order matters: later scenes draw on top.
       scene: [FS.BootScene, FS.CreateScene, FS.WorldScene, FS.UIScene]
     });
+  }
+
+  /** ?at=map,x,y: a new game, kept only in memory, standing on that square of that map. */
+  function tryMapAt(at) {
+    const parts = at.split(',');
+    FS.Session.start({ storage: new FS.Storage.MemoryStorage() });
+    const state = FS.Session.state;
+    state.look = FS.Appearance.defaultLook();
+    FS.State.setFlag(state, 'introSeen');
+    if (FS.Areas.has(parts[0])) {
+      state.pos = { area: parts[0], x: parseInt(parts[1], 10) || 0, y: parseInt(parts[2], 10) || 0, facing: 'down' };
+    }
   }
 
   // ---- Save when the learner leaves -------------------------------------
