@@ -1,0 +1,51 @@
+# Checks the game and builds its zips with EduGame Kit, every time something is pushed.
+# Made by "edugame new --github". Change KIT_VERSION to update the kit.
+#
+#   * Every push: the zips are in the run's "Artifacts" (Actions tab > the run > game-zips),
+#     so you can try them without installing anything.
+#   * Publish a release (Releases > Draft a new release, with a tag like v0.1.0 that matches
+#     "version" in edugame.json): the zips are attached to it.
+name: Build
+
+on:
+  push:
+  pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write      # only used to attach the zips to a release
+
+env:
+  KIT_VERSION: main
+
+jobs:
+  build:
+    # The name the "Protect main" ruleset asks for: see the ruleset in docs/platforms/GITHUB_PAGES.md.
+    name: Checks passed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install "edugame-kit @ git+https://github.com/togetherings/edugame-kit@${KIT_VERSION}"
+      - name: Check the game (missing words, mistakes in edugame.json)
+        run: edugame check .
+      - name: Build the zips
+        run: edugame build . -o dist && ls -l dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: game-zips
+          path: dist/*.zip
+      - name: The tag must match the version in edugame.json
+        if: github.event_name == 'release'
+        run: |
+          VERSION="$(python -c 'import json; print(json.load(open("edugame.json"))["version"])')"
+          test "v$VERSION" = "$GITHUB_REF_NAME" || { echo "::error::The tag $GITHUB_REF_NAME doesn't match version $VERSION in edugame.json"; exit 1; }
+      - name: Attach the zips to the release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" dist/*.zip --clobber

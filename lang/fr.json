@@ -1,0 +1,18 @@
+{
+  "_language": {
+    "name": "Français",
+    "dir": "ltr"
+  },
+  "title": "Mon jeu",
+  "description": "Résous des additions pour ouvrir le niveau suivant. Ton niveau est enregistré.",
+  "level": "Niveau {n} sur {total}",
+  "question": "Combien font {a} + {b} ?",
+  "right": "Bravo ! Le niveau {n} est ouvert.",
+  "wrong": "Pas tout à fait. Essaie encore.",
+  "all_done": "Tu as fini tous les niveaux.",
+  "start_over": "Recommencer",
+  "saved_where": "Enregistré : {where}",
+  "where_account": "ton compte",
+  "where_journal": "le Journal",
+  "where_browser": "ce navigateur"
+}

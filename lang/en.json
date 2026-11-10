@@ -1,0 +1,18 @@
+{
+  "_language": {
+    "name": "English",
+    "dir": "ltr"
+  },
+  "title": "My game",
+  "description": "Solve sums to open the next level. Your level is saved.",
+  "level": "Level {n} of {total}",
+  "question": "What is {a} + {b}?",
+  "right": "Right! Level {n} is open.",
+  "wrong": "Not quite. Try again.",
+  "all_done": "You finished every level.",
+  "start_over": "Start over",
+  "saved_where": "Saved: {where}",
+  "where_account": "your account",
+  "where_journal": "the Journal",
+  "where_browser": "this browser"
+}

@@ -1,0 +1,19 @@
+{
+  "format": 1,
+  "type": "saved",
+  "id": "org.example.my-game",
+  "version": "0.1.0",
+  "languages": [
+    "en",
+    "fr"
+  ],
+  "icon": "icon.svg",
+  "color": "#2f6f5e",
+  "authors": [
+    "Your name"
+  ],
+  "license": "CC-BY-4.0",
+  "exclude": [
+    "README.md"
+  ]
+}

@@ -1,0 +1,13 @@
+:root { --bg: #f6f7f4; --text: #1f2a24; --muted: #5d6a62; --accent: #2f6f5e; --line: #cfd8d2; }
+:root[data-theme=dark] { --bg: #141a17; --text: #e7eee9; --muted: #a5b3aa; --accent: #6cc1a6; --line: #34413a; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; font: 18px/1.5 system-ui, sans-serif; background: var(--bg); color: var(--text); }
+main { max-width: 32rem; margin: 0 auto; padding: 1.5rem 1rem; text-align: center; }
+h1 { font-size: 1.6rem; margin: 0 0 .5rem; }
+.level, .where { color: var(--muted); }
+.where { font-size: .85rem; margin-top: 2rem; }
+.question { font-size: 1.8rem; font-weight: 600; min-height: 2.5rem; }
+.answers { display: flex; justify-content: center; gap: .75rem; flex-wrap: wrap; }
+button { font: inherit; padding: .6rem 1.2rem; min-width: 4rem; border-radius: 10px; border: 2px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+button.quiet { background: transparent; color: var(--accent); margin-top: 1rem; }
+.feedback { min-height: 1.5rem; }

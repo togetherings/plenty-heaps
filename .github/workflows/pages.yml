@@ -1,0 +1,54 @@
+# Publishes this game to GitHub Pages: a front page, and the game to play in the browser.
+# Made by "edugame new --github". Change KIT_VERSION to update the kit.
+#
+# One-time setup (see EduGame Kit's docs/platforms/GITHUB_PAGES.md):
+#   1. Settings > Pages > Source: GitHub Actions.
+#   2. To count visits with GoatCounter: Settings > Secrets and variables > Actions >
+#      Variables > New repository variable: GOATCOUNTER_CODE = your GoatCounter code.
+#      Leave it out and nothing is counted. The counting is only added to this site,
+#      never to the game's zips.
+name: GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  KIT_VERSION: main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install "edugame-kit @ git+https://github.com/togetherings/edugame-kit@${KIT_VERSION}"
+      - name: Build the site
+        env:
+          GOATCOUNTER_CODE: ${{ vars.GOATCOUNTER_CODE }}
+        run: edugame pages . -o _site --repo "${{ github.repository }}"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

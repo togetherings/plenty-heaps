@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My game</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <p class="level" id="level"></p>
+    <p class="question" id="question" aria-live="polite"></p>
+    <div class="answers" id="answers"></div>
+    <p class="feedback" id="feedback" role="status"></p>
+    <button type="button" class="quiet" id="restart" data-t="start_over">Start over</button>
+    <p class="where" id="where"></p>
+  </main>
+  <!-- edugame-config.js and edugame.js are made by "edugame build"; keep these two lines. -->
+  <script src="edugame-config.js"></script>
+  <script src="edugame.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
