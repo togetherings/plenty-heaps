@@ -1,19 +1,27 @@
 {
   "format": 1,
   "type": "saved",
-  "id": "org.example.my-game",
+  "id": "org.togetherings.plenty-heaps",
   "version": "0.1.0",
   "languages": [
-    "en",
-    "fr"
+    "en"
   ],
   "icon": "icon.svg",
-  "color": "#2f6f5e",
+  "color": "#3a683d",
   "authors": [
-    "Your name"
+    "togetherings"
   ],
-  "license": "CC-BY-4.0",
+  "license": "Code: MIT. Art: Petixel packs, used under licence (not for reuse or AI training).",
+  "options": {
+    "header": false
+  },
   "exclude": [
-    "README.md"
+    "README.md",
+    "DESIGN.md",
+    "maps-src/*",
+    "tools/*",
+    "tests/*",
+    "dev/*",
+    "art-src/*"
   ]
 }

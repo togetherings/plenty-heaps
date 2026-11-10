@@ -1,0 +1,12 @@
+Put Phaser's minified build here, named exactly:  phaser.min.js
+
+Version used by this project: Phaser 3.90.0 (the final Phaser 3 release).
+
+Download it from either:
+  https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js
+  https://github.com/phaserjs/phaser/releases/tag/v3.90.0
+
+Or with npm:  npm install phaser@3.90.0   then copy node_modules/phaser/dist/phaser.min.js here.
+
+Keep the version pinned. Upgrading should be a deliberate decision, followed by testing
+on the target devices.
