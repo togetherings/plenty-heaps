@@ -74,8 +74,10 @@ game has been checked with both the WebGL and the Canvas renderer.
   options after release.
 - **Not saved:** anything that can be recalculated (weather, critters,
   map contents).
-- **When:** after sleeping, on changing area, every 2 game hours, and when
-  the page is hidden or closed.
+- **When:** after sleeping, on changing area, every 5 seconds of play (when
+  anything changed), and when the page is hidden or closed. Kolibri only keeps
+  what reached it before the learner leaves the resource (it stops listening
+  before the game's page closes), so the game can't rely on a last save.
 - **Old saves always load:** version 1 saves (from the first slice) are
   upgraded automatically, and a test proves it.
 - The kit keeps the game's save string inside its own record:

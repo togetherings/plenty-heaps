@@ -6,8 +6,8 @@ The kit sets up a throwaway Kolibri, adds the game to a channel and opens it in 
 learner. It checks the save reaches Kolibri, fits SCORM 1.2 and comes back next time; these
 steps play the game so there's something to save:
 
-  1. first visit: make a character, walk out to the farm and ship two maize (the first
-     shipment completes the activity);
+  1. first visit: make a character, walk out to the farm, ship two maize (the first
+     shipment completes the activity) and play on for a few seconds, so the game saves;
   2. second visit: the game carries on in the same place, with the same character and the
      cowries owed for the shipment.
 
@@ -16,13 +16,6 @@ Not part of the game (edugame.json's exclude has tests/*).
 
 
 WORLD = "FarmSim.game.scene.getScene('World')"
-SCORM_POS = """(function(){var w=window; while(!w.API && w.parent && w.parent!==w) w=w.parent;
-  if (!w.API) return 'no API'; var d=w.API.LMSGetValue('cmi.suspend_data'); return d.length + ' ' + w.API.LMSGetValue('cmi.core.lesson_status');})()"""
-
-
-def diag(game, when):  # TEMPORARY
-    print("       DIAG %s: lastSaveChars=%s scorm=%s pos=%s" % (when, game.js("FarmSim.Session.lastSaveChars"),
-          game.js(SCORM_POS), game.js("JSON.stringify(FarmSim.Session.state.pos)")), flush=True)
 
 
 def first_visit(game):
@@ -40,14 +33,11 @@ def first_visit(game):
     look = game.js("JSON.stringify(FarmSim.Session.state.look)")
     game.check('"body":"f"' in look, "the character choices were kept: %s" % look)
     game.shot("house")
-    diag(game, "house")
 
     # Walk out of the door to the farm
     game.js("(function(){var w=%s; w.player.setPosition(9*16+8, 9*16-4); w.facing='down';})()" % WORLD)
     game.hold("ArrowDown", 700)
     game.check(game.wait_for("FarmSim.currentArea.key === 'farm'"), "walked out to the farm")
-    game.page.wait_for_timeout(500)
-    diag(game, "farm")
 
     # Ship two maize at the shipping crate (handed over here: growing them takes days)
     game.js("FarmSim.State.addItem(FarmSim.Session.state, 'maize', 2)")
@@ -60,10 +50,11 @@ def first_visit(game):
     shipped = game.js("FarmSim.Session.state.shipped")
     game.check(shipped == 80, "shipped 2 maize for 80 cowries tomorrow (%s)" % shipped)
     game.shot("shipped")
-    diag(game, "shipped")
     game.expect_complete = True                # the first shipment completes the activity
 
-    # Leaving saves (the kit's "leave" event); remember where the learner was
+    # Keep playing for a moment: the game saves every few seconds. (Kolibri doesn't keep a
+    # save made as the learner leaves, so the game mustn't rely on one.)
+    game.page.wait_for_timeout(6000)
     game.data["before"] = game.js("JSON.stringify({pos: FarmSim.Session.state.pos, look: FarmSim.Session.state.look})")
 
 

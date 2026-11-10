@@ -9,7 +9,8 @@
  *
  * WHEN THE GAME SAVES (see WorldScene / main.js):
  *   - after sleeping (the main save, like Harvest Moon)
- *   - when moving between areas, and every couple of game hours
+ *   - when moving between areas, and every few seconds of play (if anything
+ *     changed): Kolibri only keeps what reached it before the learner leaves
  *   - when the page is hidden or closed (tab switch, app closed, class ends)
  * Mid-day saves also store where the player is standing, so closing the
  * game in the middle of the day doesn't throw away the morning's work.
@@ -21,6 +22,7 @@
     state: null,
     storage: null,
     lastSaveChars: 0,       // size of the last save, shown in debug info
+    lastSaveText: '',       // the last save, so unchanged state isn't saved again
     loadError: null,        // set if an existing save could not be read
 
     start: function (options) {
@@ -47,9 +49,16 @@
     save: function () {
       const text = FS.SaveCodec.encode(Session.state);
       Session.lastSaveChars = text.length;
+      Session.lastSaveText = text;
       const ok = Session.storage.save(text);
       if (FS.State.getFlag(Session.state, FS.Config.COMPLETION_FLAG)) Session.storage.setCompleted();
       return ok;
+    },
+
+    /** Save only if the state changed since the last save. */
+    saveIfChanged: function () {
+      if (FS.SaveCodec.encode(Session.state) === Session.lastSaveText) return true;
+      return Session.save();
     },
 
     finish: function () {

@@ -354,5 +354,18 @@ test('with EduGame Kit: saves through the helper, completes once, loads its save
   } finally { delete global.EduGame; }
 });
 
+test('saving every few seconds only writes when something changed', () => {
+  const st = new FS.Storage.MemoryStorage();
+  let writes = 0;
+  const save = st.save.bind(st);
+  st.save = t => { writes++; return save(t); };
+  FS.Session.start({ storage: st });
+  FS.Session.saveIfChanged(); FS.Session.saveIfChanged();
+  assert.strictEqual(writes, 1, 'nothing changed: no second write');
+  FS.Session.state.shipped += 40;
+  FS.Session.saveIfChanged();
+  assert.strictEqual(writes, 2, 'something changed: saved');
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed\n');
 process.exit(failed ? 1 : 0);
