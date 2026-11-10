@@ -1,23 +1,76 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>My game</title>
-  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Plenty Heap</title>
+  <link rel="icon" href="data:,">
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #000; overflow: hidden; }
+    /* touch-action: none stops the browser scrolling or zooming during play */
+    #game { width: 100%; height: 100%; touch-action: none; }
+    canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
+  </style>
 </head>
 <body>
-  <main>
-    <p class="level" id="level"></p>
-    <p class="question" id="question" aria-live="polite"></p>
-    <div class="answers" id="answers"></div>
-    <p class="feedback" id="feedback" role="status"></p>
-    <button type="button" class="quiet" id="restart" data-t="start_over">Start over</button>
-    <p class="where" id="where"></p>
-  </main>
-  <!-- edugame-config.js and edugame.js are made by "edugame build"; keep these two lines. -->
+  <div id="game"></div>
+
+  <!--
+    LOAD ORDER MATTERS. Each file adds itself to the global FarmSim object.
+    When you add a file (e.g. a new map), add a <script> tag here.
+  -->
+
+  <!-- EduGame Kit's save helper. edugame-config.js and edugame.js are made by
+       "edugame build" / "edugame preview"; keep these two lines. -->
   <script src="edugame-config.js"></script>
   <script src="edugame.js"></script>
-  <script src="game.js"></script>
+
+  <!-- Engine: Phaser 3.90.0 -->
+  <script src="lib/phaser.min.js"></script>
+
+  <!-- Setup -->
+  <script src="src/namespace.js"></script>
+  <script src="src/config.js"></script>
+
+  <!-- Core helpers (no Phaser needed) -->
+  <script src="src/core/bitpack.js"></script>
+  <script src="src/core/rng.js"></script>
+
+  <!-- Game data -->
+  <script src="src/data/registry.js"></script>
+  <script src="src/data/tiles.js"></script>
+  <script src="src/data/crops.js"></script>
+  <script src="src/data/items.js"></script>
+  <script src="src/data/npcs.js"></script>
+  <script src="src/data/flags.js"></script>
+  <script src="src/data/currencies.js"></script>
+  <script src="src/data/appearance.js"></script>
+  <script src="src/data/areas.js"></script>
+  <script src="src/data/strings.js"></script>
+
+  <!-- Maps (generated from maps-src/*.tmj by tools/build-maps.js) -->
+  <script src="src/data/maps/house.js"></script>
+  <script src="src/data/maps/farm.js"></script>
+  <script src="src/data/maps/village.js"></script>
+
+  <!-- Game rules and saving (no Phaser needed) -->
+  <script src="src/core/gameState.js"></script>
+  <script src="src/core/farming.js"></script>
+  <script src="src/core/day.js"></script>
+  <script src="src/core/saveCodec.js"></script>
+  <script src="src/core/storage.js"></script>
+  <script src="src/core/session.js"></script>
+  <script src="src/core/charRecolor.js"></script>
+
+  <!-- Phaser scenes and the art helpers they use -->
+  <script src="src/scenes/UIArt.js"></script>
+  <script src="src/scenes/CharacterArt.js"></script>
+  <script src="src/scenes/BootScene.js"></script>
+  <script src="src/scenes/CreateScene.js"></script>
+  <script src="src/scenes/WorldScene.js"></script>
+  <script src="src/scenes/UIScene.js"></script>
+
+  <!-- Start -->
+  <script src="src/main.js"></script>
 </body>
 </html>

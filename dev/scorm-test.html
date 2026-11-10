@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SCORM 1.2 test harness</title>
+<!--
+  scorm-test.html
+  ===============
+  A pretend LMS for testing saves without Kolibri or Moodle.
+
+  It runs the game in a frame and provides a SCORM 1.2 "API" object, like an
+  LMS does. It enforces the 4096-character suspend_data limit, shows what the
+  game stores, and remembers it (in this browser) so you can test
+  "close and come back" with the Relaunch button.
+
+  Open it through a local web server, e.g. http://localhost:8080/dev/scorm-test.html
+-->
+<style>
+  body { margin: 0; font: 14px/1.4 system-ui, sans-serif; background: #1d1b1a; color: #eee; display: flex; height: 100vh; }
+  #frameWrap { flex: 1; min-width: 0; }
+  iframe { width: 100%; height: 100%; border: 0; background: #000; }
+  #panel { width: 340px; padding: 12px; overflow: auto; background: #2a2725; box-sizing: border-box; }
+  h1 { font-size: 16px; margin: 0 0 8px; }
+  .row { margin: 6px 0; }
+  .val { font-family: monospace; }
+  .bar { height: 10px; background: #444; border-radius: 5px; overflow: hidden; }
+  .bar div { height: 100%; background: #6cd16c; }
+  .over div { background: #e0603c; }
+  button { margin: 4px 4px 4px 0; padding: 6px 10px; }
+  #data { font-family: monospace; font-size: 11px; word-break: break-all; background: #111; padding: 6px; max-height: 120px; overflow: auto; }
+  #log { font-family: monospace; font-size: 11px; background: #111; padding: 6px; height: 220px; overflow: auto; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<div id="frameWrap"><iframe id="game" src="../index.html"></iframe></div>
+<div id="panel">
+  <h1>SCORM 1.2 test LMS</h1>
+  <div class="row">Status: <span class="val" id="status"></span></div>
+  <div class="row">Exit: <span class="val" id="exit"></span></div>
+  <div class="row">suspend_data: <span class="val" id="len"></span> / 4096 chars</div>
+  <div class="bar" id="barWrap"><div id="bar"></div></div>
+  <div class="row"><button id="relaunch">Relaunch (simulate coming back)</button></div>
+  <div class="row"><button id="clear">Clear learner data</button><label><input type="checkbox" id="touch"> touch controls</label></div>
+  <div class="row">Saved data:</div>
+  <div id="data"></div>
+  <div class="row">API calls:</div>
+  <div id="log"></div>
+</div>
+<script>
+(function () {
+  'use strict';
+  var KEY = 'scorm-test-harness';
+  var LIMIT = 4096;
+  var store;
+  try { store = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { store = {}; }
+  if (!store['cmi.core.lesson_status']) store['cmi.core.lesson_status'] = 'not attempted';
+  var initialized = false;
+
+  function persist() { localStorage.setItem(KEY, JSON.stringify(store)); render(); }
+  function log(msg) {
+    var el = document.getElementById('log');
+    el.textContent = new Date().toLocaleTimeString() + ' ' + msg + '\n' + el.textContent;
+  }
+  function render() {
+    var d = store['cmi.suspend_data'] || '';
+    document.getElementById('status').textContent = store['cmi.core.lesson_status'];
+    document.getElementById('exit').textContent = store['cmi.core.exit'] || '(not set)';
+    document.getElementById('len').textContent = d.length;
+    document.getElementById('bar').style.width = Math.min(100, d.length / LIMIT * 100) + '%';
+    document.getElementById('barWrap').className = 'bar' + (d.length > LIMIT ? ' over' : '');
+    document.getElementById('data').textContent = d || '(empty)';
+  }
+
+  // The SCORM 1.2 API. Real LMSs return the strings "true"/"false".
+  window.API = {
+    LMSInitialize: function () { initialized = true; log('LMSInitialize'); return 'true'; },
+    LMSFinish: function () { initialized = false; log('LMSFinish'); persist(); return 'true'; },
+    LMSGetValue: function (k) { log('Get ' + k); return store[k] || ''; },
+    LMSSetValue: function (k, v) {
+      if (!initialized) { log('ERROR Set before Initialize: ' + k); return 'false'; }
+      v = String(v);
+      if (k === 'cmi.suspend_data' && v.length > LIMIT) {
+        // Like a strict LMS: refuse (many others silently cut the data off!)
+        log('ERROR suspend_data too long: ' + v.length);
+        return 'false';
+      }
+      store[k] = v;
+      log('Set ' + k + (k === 'cmi.suspend_data' ? ' (' + v.length + ' chars)' : ' = ' + v));
+      return 'true';
+    },
+    LMSCommit: function () { log('LMSCommit'); persist(); return 'true'; },
+    LMSGetLastError: function () { return '0'; },
+    LMSGetErrorString: function () { return ''; },
+    LMSGetDiagnostic: function () { return ''; }
+  };
+
+  function gameUrl() { return '../index.html' + (document.getElementById('touch').checked ? '?touch' : ''); }
+  document.getElementById('relaunch').onclick = function () {
+    document.getElementById('game').src = 'about:blank';
+    setTimeout(function () { document.getElementById('game').src = gameUrl(); }, 100);
+  };
+  document.getElementById('clear').onclick = function () {
+    store = { 'cmi.core.lesson_status': 'not attempted' };
+    persist();
+    log('Learner data cleared');
+    document.getElementById('relaunch').onclick();
+  };
+  document.getElementById('touch').onchange = function () { document.getElementById('relaunch').onclick(); };
+  render();
+})();
+</script>
+</body>
+</html>

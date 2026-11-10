@@ -1,0 +1,9 @@
+# Purchased Petixel art packs: keep them on your own computer only. The licence
+# doesn't allow publishing them, and this repository is public. The game's own
+# images (assets/) are built from them with tools/build_assets.py.
+art-src/
+
+# Builds
+dist/
+_site/
+__pycache__/
