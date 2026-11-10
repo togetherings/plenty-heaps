@@ -78,6 +78,9 @@ game has been checked with both the WebGL and the Canvas renderer.
   anything changed), and when the page is hidden or closed. Kolibri only keeps
   what reached it before the learner leaves the resource (it stops listening
   before the game's page closes), so the game can't rely on a last save.
+- **Never lose a farm:** each save is read back before it's written. A save that
+  can't be loaded (damaged, or from a newer version) is never saved over: the
+  learner chooses to play without saving or (if damaged) to start a new farm.
 - **Old saves always load:** version 1 saves (from the first slice) are
   upgraded automatically, and a test proves it.
 - The kit keeps the game's save string inside its own record:

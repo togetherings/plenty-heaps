@@ -51,14 +51,20 @@ Add these to the address:
 worst-case save size, farming, seasons, money, appearance, map links and saving through the kit.
 
 On GitHub, every push and pull request runs the **Build** workflow, which must pass ("Checks
-passed") before anything reaches `main`. It runs:
+passed") before anything reaches `main`. Its steps are EduGame Kit's (`game.yml`, at the kit
+release named in `.github/workflows/build.yml`). It runs:
 1. the game's tests,
 2. `edugame check`,
 3. `edugame build`,
 4. **Real Kolibri**: EduGame Kit's `edugame kolibri-test` adds the zip to a channel in a real
    Kolibri and plays it in Learn as a learner (the steps are in `tests/kolibri_play.py`): the
    save must reach Kolibri, fit SCORM 1.2, complete the activity and come back next time.
-   Screenshots are in the run's **Artifacts** (kolibri-screenshots).
+   Then it damages the save and checks nothing writes over it. Screenshots are in the run's
+   **Artifacts** (kolibri-screenshots).
+
+**Kit updates:** when EduGame Kit has a new release, Dependabot opens a pull request here that
+moves `build.yml` and `pages.yml` to it, and these checks run on it. Read the kit's notes in the
+pull request ("What games need to do"), and merge it when the checks pass.
 
 The zips are in the run's **Artifacts** (Actions tab > the run > game-zips). For a release, draft
 one in **Releases** with a tag that matches `version` in `edugame.json` (like `v0.1.0`); the zips
@@ -73,6 +79,12 @@ saves there: SCORM `cmi.suspend_data` in Kolibri and learning systems, the Kolib
 page, or the browser. The game hands it one compact text string (about 100–500 characters; the
 limit is 3,900). **The game never talks to SCORM itself when the helper is there**, or the two
 would overwrite each other. See `src/core/storage.js` and DESIGN.md.
+
+The game saves after sleeping, on changing area, and every 5 seconds of play when anything changed
+(Kolibri drops a save made as the learner leaves). Each save is read back before it's written.
+If the saved farm can't be loaded (damaged, or from a newer version of the game), nothing is saved
+over it: the learner chooses to play without saving or to start a new farm
+(`src/ui/saveProblem.js`).
 
 When the first crop is shipped, the game tells the platform the activity is done ("passed", the
 status Kolibri counts).
@@ -94,6 +106,7 @@ src/
   data/                 items, crops, villagers, flags, areas, words, money, looks;
                         tiles.js and maps/ are generated
   scenes/               Boot, Create (character), World (any area), UI; art helpers
+  ui/saveProblem.js     the message when a saved farm can't be loaded
   main.js               waits for the kit's helper, starts Phaser, saves when the page closes
 tests/run-tests.js      automated checks
 tests/kolibri_play.py   how to play in the real-Kolibri test

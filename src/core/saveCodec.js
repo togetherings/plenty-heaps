@@ -140,7 +140,9 @@
     const r = new BP.BitReader(body);
     const version = r.read(8);
     if (version === 1 || version === 2) return upgrade(read(r, version));
-    throw new Error('unknown save version ' + version + ' (made by a newer game?)');
+    const e = new Error('unknown save version ' + version + ' (made by a newer game?)');
+    e.kind = 'newer';      // see Session.problem
+    throw e;
   }
 
   /** Read versions 1 and 2 (they share most of the layout). */

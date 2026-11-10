@@ -1,10 +1,11 @@
-# Checks the game and builds its zips with EduGame Kit, and plays it in a real Kolibri,
-# every time something is pushed. (Started from "edugame new --github".) Change KIT_VERSION
-# to update the kit.
+# Checks the game, builds its zips and plays it in a real Kolibri, every time something is
+# pushed. Started from "edugame new --github". The steps are EduGame Kit's (its game.yml workflow),
+# at the kit release named after "@": Dependabot (.github/dependabot.yml) opens a pull request
+# here when a new kit release comes out, and these checks run on it.
 #
 #   * Every push: the zips are in the run's "Artifacts" (Actions tab > the run > game-zips),
-#     so you can try them without installing anything. Screenshots of the game in Kolibri
-#     are in "kolibri-screenshots".
+#     so you can try them without installing anything. Screenshots of the game in Kolibri are
+#     in "kolibri-screenshots".
 #   * Publish a release (Releases > Draft a new release, with a tag like v0.1.0 that matches
 #     "version" in edugame.json): the zips are attached to it.
 name: Build
@@ -19,73 +20,20 @@ on:
 permissions:
   contents: write      # only used to attach the zips to a release
 
-env:
-  KIT_VERSION: main
-
 jobs:
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - run: pip install "edugame-kit @ git+https://github.com/togetherings/edugame-kit@${KIT_VERSION}"
-      - name: The game's own tests (saves, farming, seasons, maps)
-        run: node tests/run-tests.js
-      - name: Check the game (missing words, mistakes in edugame.json)
-        run: edugame check .
-      - name: Build the zips
-        run: edugame build . -o dist && ls -l dist
-      - uses: actions/upload-artifact@v4
-        with:
-          name: game-zips
-          path: dist/*.zip
-      - name: The tag must match the version in edugame.json
-        if: github.event_name == 'release'
-        run: |
-          VERSION="$(python -c 'import json; print(json.load(open("edugame.json"))["version"])')"
-          test "v$VERSION" = "$GITHUB_REF_NAME" || { echo "::error::The tag $GITHUB_REF_NAME doesn't match version $VERSION in edugame.json"; exit 1; }
-      - name: Attach the zips to the release
-        if: github.event_name == 'release'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$GITHUB_REF_NAME" dist/*.zip --clobber
+  kit:
+    name: Kit
+    uses: togetherings/edugame-kit/.github/workflows/game.yml@v0.3.0
+    with:
+      # The game's own tests: saves, farming, seasons, maps (no Phaser needed).
+      tests: node tests/run-tests.js
 
-  # Puts the built zip in a channel inside a real Kolibri (as Kolibri Studio would) and plays it
-  # in Learn as a learner, with EduGame Kit's "edugame kolibri-test": saving through Kolibri's
-  # SCORM connection, completion, and carrying on after leaving. tests/kolibri_play.py says how
-  # to play.
-  kolibri:
-    name: Real Kolibri
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install Kolibri, the kit and a browser
-        run: |
-          pip install kolibri playwright "edugame-kit @ git+https://github.com/togetherings/edugame-kit@${KIT_VERSION}"
-          python -m playwright install --with-deps chromium
-          echo "::notice title=Kolibri version::$(python -c 'import kolibri; print(kolibri.__version__)')"
-      - name: Play the game in Kolibri
-        run: edugame kolibri-test . --screenshots kolibri-screenshots
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: kolibri-screenshots
-          path: kolibri-screenshots
-          if-no-files-found: ignore
-
-  # The one check the "Protect main" ruleset requires: it passes only when every job above
-  # passed, so jobs can be added or renamed without changing the ruleset. Add new test jobs
-  # to "needs".
+  # The name the "Protect main" ruleset asks for (see docs/platforms/GITHUB_PAGES.md in the
+  # kit): it passes only when every job above passed. Add new jobs to "needs".
   checks-passed:
     name: Checks passed
     if: always()
-    needs: [build, kolibri]
+    needs: [kit]
     runs-on: ubuntu-latest
     steps:
       - name: Every check passed

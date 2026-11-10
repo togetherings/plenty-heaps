@@ -35,6 +35,12 @@
   // loads the save, so wait for it. Without it (the raw folder served by Live
   // Server, with no build) the game saves by itself.
   if (window.EduGame) {
+    // When the kit can't read what the platform kept (damaged, or from a newer
+    // kit), it gives no save and saves nothing. Show the game's own message for it.
+    window.EduGame.on('saveproblem', function (p) {
+      FS.Session.problem = { kind: p.kind === 'newer' ? 'newer' : 'damaged', message: 'kit: ' + p.kind, kit: true };
+      FS.SaveProblem.show();
+    });
     window.EduGame.ready().then(start, function (e) {
       console.error('[FarmSim] the save helper failed, saving in this browser:', e);
       start(null);
@@ -46,6 +52,7 @@
   function start(edugameInfo) {
     // Load the save (or start a new game) BEFORE Phaser starts.
     FS.Session.start({ reset: has('reset'), edugameInfo: edugameInfo });
+    if (FS.Session.problem) FS.SaveProblem.show();
 
     FS.game = new Phaser.Game({
       type: has('canvas') ? Phaser.CANVAS : Phaser.AUTO,   // WebGL when available, else Canvas

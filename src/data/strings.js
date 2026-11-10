@@ -132,7 +132,15 @@
     kadi_dry: 'In the dry season you must water every day. Pepper loves the heat.',
     sorie_s1: 'Kushe. I am Sorie. I sell good seed - come and look.',
     sorie_f1: 'Ah, my best customer! Your field is looking fine.',
-    sorie_c1: 'Everyone at the market is talking about your harvest!'
+    sorie_c1: 'Everyone at the market is talking about your harvest!',
+
+    // ---- When a saved farm can't be loaded (ui/saveProblem.js) ----
+    save_problem_title: "Your farm couldn't be loaded",
+    save_problem_damaged: "Your saved farm is damaged, so it can't be read. It's kept as it is until you choose to start a new farm.",
+    save_problem_newer: 'Your farm was saved by a newer version of Plenty Heaps. Play it on a device with the newer version, or ask your teacher to update the game.',
+    save_problem_unsaved: 'You can play, but nothing will be saved this time.',
+    save_play_without: 'Play without saving',
+    save_new_farm: 'Start a new farm'
   };
 
   FS.Strings = {

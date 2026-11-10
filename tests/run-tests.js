@@ -324,7 +324,13 @@ test('SCORM storage uses suspend_data, sets suspend exit, refuses oversize', () 
   assert.strictEqual(st.load(), 'abc');
   assert.ok(!st.save('x'.repeat(4097)), 'oversize save refused');
   assert.strictEqual(st.load(), 'abc', 'previous save kept');
+  // "abc" isn't a save the game can read: it's kept, not saved over (see the next test)
+  FS.Session.start({ storage: st });
+  assert.strictEqual(FS.Session.problem.kind, 'damaged');
+  assert.ok(!FS.Session.save());
+  assert.strictEqual(st.load(), 'abc', 'an unreadable save is never saved over');
   // Full session through SCORM
+  data['cmi.suspend_data'] = '';
   FS.Session.start({ storage: st });
   FS.State.setFlag(FS.Session.state, C.COMPLETION_FLAG);
   assert.ok(FS.Session.save());
@@ -365,6 +371,46 @@ test('saving every few seconds only writes when something changed', () => {
   FS.Session.state.shipped += 40;
   FS.Session.saveIfChanged();
   assert.strictEqual(writes, 2, 'something changed: saved');
+});
+
+test('a save the game cannot read is kept until the learner starts a new farm', () => {
+  const BP = FS.BitPack;
+  const st = new FS.Storage.MemoryStorage();
+  const good = FS.SaveCodec.encode(FS.State.newGame());
+  // Damaged: cut in half on its way
+  st.text = good.slice(0, Math.floor(good.length / 2));
+  FS.Session.start({ storage: st });
+  assert.strictEqual(FS.Session.problem.kind, 'damaged');
+  assert.ok(!FS.Session.save() && !FS.Session.saveIfChanged(), 'nothing is saved');
+  assert.strictEqual(st.text, good.slice(0, Math.floor(good.length / 2)), 'the damaged save is kept');
+  FS.Session.startNewFarm();
+  assert.ok(FS.Session.save(), 'saving starts again after choosing a new farm');
+  assert.ok(FS.SaveCodec.decode(st.text));
+  // From a newer version of the game (an unknown version number, with a good checksum)
+  const bytes = BP.base64urlToBytes(good).slice(0, -2);
+  bytes[0] = 99;
+  const crc = BP.crc16(bytes);
+  const newer = BP.bytesToBase64url(bytes.concat([crc >> 8, crc & 255]));
+  st.text = newer;
+  FS.Session.start({ storage: st });
+  assert.strictEqual(FS.Session.problem.kind, 'newer');
+  assert.ok(!FS.Session.save());
+  assert.strictEqual(st.text, newer, 'a save from a newer version is kept');
+});
+
+test('a save that cannot be read back is never written', () => {
+  const st = new FS.Storage.MemoryStorage();
+  FS.Session.start({ storage: st });
+  assert.ok(FS.Session.save());
+  const kept = st.text;
+  const decode = FS.SaveCodec.decode;
+  FS.SaveCodec.decode = function () { throw new Error('a bug in the codec'); };
+  try {
+    FS.Session.state.shipped += 40;
+    assert.ok(!FS.Session.save(), 'refused');
+    assert.strictEqual(st.text, kept, 'the last good save is kept');
+    assert.strictEqual(FS.Session.lastSaveError, 'a bug in the codec');
+  } finally { FS.SaveCodec.decode = decode; }
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed\n');

@@ -1,0 +1,15 @@
+# Dependabot opens a pull request here when there's a new release of EduGame Kit (the "@v..."
+# in .github/workflows/build.yml) or of the GitHub actions the workflows use. The game's checks
+# run on it: merge it when they pass. The kit's notes for the release say if games need to change
+# anything themselves.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: daily
+    groups:
+      # Other actions together in one pull request; the kit in its own, with its release notes.
+      actions:
+        patterns: ["*"]
+        exclude-patterns: ["togetherings/edugame-kit*"]
