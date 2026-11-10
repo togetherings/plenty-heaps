@@ -540,10 +540,6 @@
         FS.State.setFlag(state, 'introSeen');
       }
 
-      if (this.firstLoad && FS.Session.loadError) {
-        pages.unshift({ text: 'Your saved game could not be loaded, so a new game was started. (' + FS.Session.loadError + ')' });
-        FS.Session.loadError = null;
-      }
       if (pages.length) FS.UI.showDialogue(pages);
     }
 
