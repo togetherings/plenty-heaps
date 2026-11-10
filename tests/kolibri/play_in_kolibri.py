@@ -24,6 +24,7 @@ def check(cond, what):
     print(("ok   " if cond else "FAIL ") + what, flush=True)
     if not cond:
         FAILURES.append(what)
+    return cond
 
 
 def game_frame(page, timeout=90):
@@ -56,15 +57,16 @@ def wait_for(frame, js, timeout=30):
     return False
 
 
-def sign_in(page, base, username, password):
-    page.goto(base + "en/auth/#/signin")
-    page.locator("#username input").wait_for(timeout=60000)
-    page.locator("#username input").fill(username)
-    page.locator("button.login-btn, .login-btn button, .login-btn").first.click()
-    page.locator("#password input").wait_for(timeout=30000)
-    page.locator("#password input").fill(password)
-    page.locator("#password input").press("Enter")
-    page.wait_for_url(lambda url: "/auth/" not in url, timeout=60000)
+def sign_in(page, base, info):
+    """Sign in through Kolibri's sign-in API (the same call its sign-in page makes), so the
+    test doesn't depend on how the sign-in page looks in each Kolibri version."""
+    page.goto(base + "en/")
+    page.wait_for_load_state("networkidle")
+    csrf = next((c["value"] for c in page.context.cookies() if c["name"] == "kolibri_csrftoken" or c["name"] == "csrftoken"), "")
+    r = page.request.post(base + "api/auth/session/", headers={"X-CSRFToken": csrf, "Referer": base},
+                          data={"username": info["learner"], "password": info["password"], "facility": info["facility"]})
+    print("       sign-in API: %s %s" % (r.status, r.text()[:200]), flush=True)
+    return r.ok
 
 
 def open_resource(page, base, node_id):
@@ -88,12 +90,15 @@ def main(base, shots):
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.on("console", lambda m: m.type == "error" and "FarmSim" in m.text and errors.append(m.text))
 
-        sign_in(page, base, info["learner"], info["password"])
-        check(True, "signed in as the learner")
+        if not check(sign_in(page, base, info), "signed in as the learner"):
+            page.screenshot(path=os.path.join(shots, "0-sign-in.png"))
+            return finish(browser, errors)
 
         # ---- 1. First visit
         frame = open_resource(page, base, info["node_id"])
         page.screenshot(path=os.path.join(shots, "1-opened.png"))
+        if frame is None:
+            print("       frames: %s" % [f.url for f in page.frames], flush=True)
         check(frame is not None, "the game opened in Learn")
         if frame is None:
             return finish(browser, errors)

@@ -57,5 +57,5 @@ user.save()
 
 with open(os.path.join("tests", "kolibri", "channel.json"), "w") as f:
     json.dump({"channel_id": channel_id, "node_id": node.id, "content_id": node.content_id,
-               "learner": LEARNER, "password": PASSWORD}, f)
+               "learner": LEARNER, "password": PASSWORD, "facility": facility.id}, f)
 print("Added %s as resource %s in channel %s; learner %s" % (os.path.basename(ZIP), node.id, channel_id, LEARNER))
