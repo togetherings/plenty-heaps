@@ -17,7 +17,7 @@ import shutil
 import uuid
 
 from kolibri.core.auth.models import Facility, FacilityUser
-from kolibri.core.content.models import ChannelMetadata, ContentNode, File, LocalFile
+from kolibri.core.content.models import ChannelMetadata, ContentNode, File, Language, LocalFile
 from kolibri.core.content.utils.paths import get_content_storage_file_path
 
 ZIP = os.environ["PH_ZIP"]
@@ -31,17 +31,20 @@ os.makedirs(os.path.dirname(target), exist_ok=True)
 shutil.copyfile(ZIP, target)
 local = LocalFile.objects.create(id=checksum, extension="zip", available=True, file_size=os.path.getsize(target))
 
-# 2. A channel: a topic with one HTML5 resource in it
+# 2. A channel: a topic with one HTML5 resource in it. Channels from Studio always have a
+# language, and Kolibri's HTML5 viewer needs it (it passes it to the game).
+english, _ = Language.objects.get_or_create(
+    id="en", defaults={"lang_code": "en", "lang_name": "English", "lang_direction": "ltr"})
 channel_id = uuid.uuid4().hex
 root = ContentNode.objects.create(
     id=channel_id, content_id=uuid.uuid4().hex, channel_id=channel_id,
-    title="Plenty Heaps test channel", kind="topic", available=True,
+    title="Plenty Heaps test channel", kind="topic", available=True, lang=english,
 )
 node = ContentNode.objects.create(
     id=uuid.uuid4().hex, content_id=uuid.uuid4().hex, channel_id=channel_id, parent=root,
-    title="Plenty Heaps", kind="html5", available=True,
+    title="Plenty Heaps", kind="html5", available=True, lang=english,
 )
-File.objects.create(id=uuid.uuid4().hex, local_file=local, contentnode=node, preset="html5_zip")
+File.objects.create(id=uuid.uuid4().hex, local_file=local, contentnode=node, preset="html5_zip", lang=english)
 ChannelMetadata.objects.create(id=channel_id, name="Plenty Heaps test channel", root=root, version=1)
 try:  # newer Kolibris keep a few summary fields on the channel (language, size, ...)
     from kolibri.core.content.utils.annotation import set_channel_metadata_fields
