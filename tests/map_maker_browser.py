@@ -63,10 +63,13 @@ def main():
             page.locator("#dialog input").nth(0).fill("puddles")
             page.locator("#dialog input").nth(1).fill("rain")
             page.locator("#dialog button[value=ok]").click()
+            page.wait_for_function("document.querySelector('#layers select').value === 'puddles'")
+            page.wait_for_timeout(200)     # the header may have changed size: measure again
             sand, = page.evaluate("[mapMaker.project.tiles.names.sand]")
             box, view = page.locator("#palette").bounding_box(), page.locator("#view").bounding_box()
             page.mouse.click(*tile_at(sand))
             page.mouse.click(view["x"] + view["width"] / 2 + 32, view["y"] + view["height"] / 2 + 32)
+            page.wait_for_function("mapMaker.project.maps.farm.layers.some(l => l.name === 'puddles' && l.data.indexOf(%d) !== -1)" % (sand + 1), timeout=5000)
             if shots:
                 page.screenshot(path=os.path.join(shots, "map-maker-1.png"))
 
