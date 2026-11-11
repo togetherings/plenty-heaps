@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plenty Heaps looks</title>
+<link rel="icon" href="data:,">
+<style>
+  :root { --bg: #1d1a17; --panel: #2a2622; --line: #4a423a; --text: #f3ead8; --muted: #b8ab95; --accent: #e8c170; --green: #3a683d; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }
+  header { display: flex; gap: 10px; align-items: center; padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 16px; margin: 0; }
+  main { display: grid; grid-template-columns: 330px 1fr 360px; gap: 12px; padding: 12px; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 4px 0 8px; }
+  button, select, input { font: inherit; color: var(--text); background: #3a332c; border: 1px solid var(--line); border-radius: 4px; padding: 3px 8px; }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.on, button.primary { background: var(--green); border-color: #6aa86d; }
+  label.row { display: flex; align-items: center; gap: 6px; margin: 5px 0; }
+  label.row > span:first-child { min-width: 80px; color: var(--muted); }
+  canvas { image-rendering: pixelated; background: repeating-conic-gradient(#3a332c 0% 25%, #2a2622 0% 50%) 0 0 / 16px 16px; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 4px; }
+  .swatch { width: 26px; height: 26px; border-radius: 4px; border: 2px solid transparent; cursor: pointer; padding: 0; }
+  .swatch.on { border-color: #fff; }
+  .grid { display: flex; flex-wrap: wrap; gap: 6px; }
+  .grid figure { margin: 0; text-align: center; font-size: 11px; color: var(--muted); cursor: pointer; }
+  .hint { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+  .colors { display: grid; grid-template-columns: 80px repeat(3, 1fr); gap: 4px; align-items: center; margin: 6px 0; }
+  .colors button.slot { height: 26px; }
+  .colors button.slot.on { outline: 2px solid #fff; }
+  .palette { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; margin: 6px 0; }
+  .palette button { height: 22px; padding: 0; border-radius: 3px; }
+  #status { color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Plenty Heaps looks</h1>
+  <button id="save" class="primary">Save</button>
+  <span id="status"></span>
+  <span class="hint">Characters are recoloured while the game runs (src/core/charRecolor.js): one body sheet and one hair sheet make every look.</span>
+</header>
+<main>
+  <section>
+    <h2>A look</h2>
+    <div id="look"></div>
+    <p><canvas id="sheet" width="144" height="384"></canvas> <canvas id="walk" width="64" height="128"></canvas></p>
+    <h2>Villagers</h2>
+    <div id="npcs"></div>
+  </section>
+  <section>
+    <h2>Every skin tone</h2>
+    <div class="grid" id="skins"></div>
+    <h2>Every hairstyle and colour</h2>
+    <div class="grid" id="hairs"></div>
+    <h2>Every outfit</h2>
+    <div class="grid" id="outfits"></div>
+  </section>
+  <section>
+    <h2>Outfit colours</h2>
+    <div id="outfit-edit"></div>
+  </section>
+</main>
+<script src="/src/namespace.js"></script>
+<script src="/src/data/registry.js"></script>
+<script src="/src/data/appearance.js"></script>
+<script src="/src/data/npcs.js"></script>
+<script src="/src/core/charRecolor.js"></script>
+<script src="looks.js"></script>
+</body>
+</html>

@@ -10,11 +10,15 @@
           --accent: #e8c170; --green: #3a683d; --red: #c0392b; }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 14px/1.35 system-ui, sans-serif; }
-  body { display: grid; grid-template-columns: 250px 1fr 300px; grid-template-rows: auto 1fr auto; height: 100vh; }
+  body { display: grid; grid-template-columns: 250px 1fr 350px; grid-template-rows: auto auto 1fr auto; height: 100vh; }
   header { grid-column: 1 / 4; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px 10px;
            background: var(--panel); border-bottom: 1px solid var(--line); }
   header h1 { font-size: 16px; margin: 0 12px 0 0; }
   header .sep { width: 1px; height: 24px; background: var(--line); margin: 0 4px; }
+  #preview-bar { grid-column: 1 / 4; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 4px 10px;
+                 background: #241f1b; border-bottom: 1px solid var(--line); font-size: 13px; }
+  #preview-bar label { display: inline-flex; gap: 4px; align-items: center; margin: 0; }
+  #preview-bar.on { background: #2c3a2a; }
   aside { background: var(--panel); overflow: auto; padding: 8px 10px; }
   aside.left { border-right: 1px solid var(--line); }
   aside.right { border-left: 1px solid var(--line); }
@@ -24,6 +28,7 @@
            color: var(--muted); font-size: 12px; display: flex; gap: 16px; }
   h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 12px 0 6px; }
   h2:first-child { margin-top: 2px; }
+  details > summary { cursor: pointer; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 12px 0 6px; }
   button, select, input { font: inherit; color: var(--text); background: #3a332c; border: 1px solid var(--line);
                           border-radius: 4px; padding: 3px 8px; }
   button { cursor: pointer; }
@@ -41,8 +46,10 @@
   .maps li.on { background: var(--green); }
   .maps small { color: var(--muted); }
   .maps li.on small { color: var(--text); }
-  #palette { display: block; image-rendering: pixelated; cursor: pointer; border: 1px solid var(--line); background:
+  .checker { image-rendering: pixelated; border: 1px solid var(--line); background:
              repeating-conic-gradient(#3a332c 0% 25%, #2a2622 0% 50%) 0 0 / 16px 16px; }
+  #palette, #source { display: block; cursor: pointer; width: 100%; }
+  .scroll { max-height: 360px; overflow: auto; }
   .stamps { display: flex; flex-wrap: wrap; gap: 6px; }
   .stamps button { padding: 2px; display: flex; flex-direction: column; align-items: center; font-size: 11px; }
   .stamps canvas { image-rendering: pixelated; }
@@ -54,11 +61,16 @@
   .muted { color: var(--muted); }
   .anchor { display: inline-grid; grid-template-columns: repeat(3, 22px); gap: 2px; vertical-align: middle; }
   .anchor button { width: 22px; height: 22px; padding: 0; }
-  dialog { background: var(--panel); color: var(--text); border: 1px solid var(--accent); border-radius: 6px; max-width: 420px; }
+  dialog { background: var(--panel); color: var(--text); border: 1px solid var(--accent); border-radius: 6px; max-width: 460px; }
   dialog::backdrop { background: rgba(0, 0, 0, .55); }
   .tools button { min-width: 34px; }
-  .hint { font-size: 12px; color: var(--muted); margin: 4px 0; }
+  .hint { font-size: 12px; color: var(--muted); margin: 4px 0; overflow-wrap: anywhere; }
+  aside select { max-width: 100%; }
   .toggles label { display: inline-flex; gap: 4px; margin-right: 8px; }
+  .buttons { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+  .rules { list-style: none; padding: 0; margin: 4px 0; font-size: 12px; }
+  .rules li { display: flex; justify-content: space-between; align-items: center; gap: 4px; padding: 1px 0; }
+  .rules button { padding: 0 6px; }
 </style>
 </head>
 <body>
@@ -68,13 +80,18 @@
   <span class="sep"></span>
   <span id="layers"></span>
   <span class="sep"></span>
+  <span id="flips"></span>
+  <span class="sep"></span>
   <button id="undo" title="Undo (Ctrl+Z)">Undo</button>
   <button id="redo" title="Redo (Ctrl+Y)">Redo</button>
   <span class="sep"></span>
   <button id="save" class="primary" title="Save (Ctrl+S)">Save</button>
   <button id="play" title="Save, then play the game standing on the chosen square">Play here</button>
+  <a href="looks.html" target="plenty-heaps-looks"><button type="button" title="Characters: skins, hair, outfits and villagers">Looks…</button></a>
   <span id="status" class="muted"></span>
 </header>
+
+<div id="preview-bar"></div>
 
 <aside class="left">
   <h2>Maps</h2>
@@ -91,19 +108,26 @@
 <aside class="right">
   <div id="inspector"></div>
   <h2>Tiles</h2>
-  <p class="hint">Click or drag to choose tiles. Red corner: solid (blocks the player).</p>
-  <canvas id="palette"></canvas>
-  <p><button id="toggle-solid" title="Make the chosen tiles solid, or walkable, on every map">Solid / walkable</button>
-     <span id="tile-name" class="muted"></span></p>
+  <p class="hint">Click or drag to choose tiles. Red corner: solid. Blue corner: animated. X / Y flip the brush, Z turns it.</p>
+  <div class="scroll"><canvas id="palette" class="checker"></canvas></div>
+  <p><span id="tile-name" class="muted"></span></p>
+  <div class="buttons" id="tile-buttons"></div>
   <h2>Stamps</h2>
   <p class="hint">Whole objects (a hut, a tree) on every layer at once. Make your own with the Select tool.</p>
   <div class="stamps" id="stamps"></div>
+  <details id="sources-box"><summary>Add tiles from the art</summary><div id="sources"></div></details>
+  <details><summary>Seasons</summary><div id="seasons"></div></details>
+  <details><summary>Animated objects and shore foam</summary><div id="objects-box"></div></details>
 </aside>
 
 <footer><span id="where"></span><span id="help"></span></footer>
 
 <dialog id="dialog"><form method="dialog" id="dialog-form"></form></dialog>
 
+<script src="/src/namespace.js"></script>
+<script src="/src/core/mapView.js"></script>
+<script src="atlas.js"></script>
 <script src="editor.js"></script>
+<script src="tilelist.js"></script>
 </body>
 </html>

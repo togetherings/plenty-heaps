@@ -12,8 +12,13 @@ See **DESIGN.md** for the game's design decisions.
 - **Character creation:** body, skin tone, hairstyle and hair colour.
 - **Three areas:** your round house, the farm, and the village with its beach.
 - **Farming:** the hoe makes heaps, then you plant, water and harvest. Five crops.
-- **Two seasons, rainy and dry:** rain waters the field, and crops wither out of season.
-- **Day cycle:** a clock, nights, sleeping and passing out.
+- **Four seasons of 12 days:** First Rain, Big Rain, Harmattan and Warm Season. Crops wither out
+  of season, and each season can change how tiles look (dry grass in the dry seasons).
+- **Rain in spells:** worked out from the world seed; 4 hours of rain (storms count double) waters
+  the field.
+- **Sun, moon and tides:** real sunrise and sunset for Lungi, an 11-day moon, and tides that move the
+  sea's edge (with shore foam) on maps that have a tide.
+- **Day cycle:** a clock, twilight and night, sleeping and passing out.
 - **Money:** the shipping crate pays in **cowries** overnight, and Pa Sorie's stall sells seeds.
 - **Villagers:** Aunty Kadi and Pa Sorie, with dialogue, gifts and friendship.
 - **Ambient life:** wandering hens, chicks and crabs.
@@ -102,12 +107,16 @@ lang/en.json            the game's title and description for every platform
 DESIGN.md               design decisions - read first
 icon.svg                the game's icon
 lib/phaser.min.js       Phaser 3.90.0
-assets/                 the game's images (built by tools/build_assets.py)
+assets/                 the game's images: tiles.png and objects.png (drawn by the map maker),
+                        items, characters and window art (tools/build_assets.py)
+art-src/own/            the game's own drawings (the packs and pictures made from them stay on
+                        your computer, in art-src/petixel/ and art-src/made/)
 maps-src/               the maps (.tmj, Tiled's format) - edit them with the map maker;
-                        tileset.json is generated; tile-settings.json and stamps.json are the map maker's
+                        tiles.json is the tile list; stamps.json the stamps; tileset.json is generated
 src/
   namespace.js, config.js     the FarmSim object; tuning values
-  core/                 no Phaser: game rules, saving, the palette swap (tested in Node)
+  core/                 no Phaser: game rules, saving, the palette swap, the calendar, rain,
+                        sun, moon and tides, how a map looks right now (tested in Node)
   data/                 items, crops, villagers, flags, areas, words, money, looks;
                         tiles.js and maps.js are generated
   scenes/               Boot, Create (character), World (any area), UI; art helpers
@@ -119,10 +128,10 @@ tests/kolibri_play.py   how to play in the real-Kolibri test
 docs/MAP_MAKER.md       how to use the map maker
 dev/scorm-test.html     pretend learning system
 tools/
-  build_assets.py       art-src/ -> assets/ (needs Python 3 + Pillow and the art packs)
-  map_maker.py          the map maker (python tools/map_maker.py), and maps-src/ -> src/data/maps.js
-  map-maker/            the map maker's page
-  generate_starter_maps.py   made the first maps (don't re-run once maps are edited)
+  build_assets.py       art-src/ -> item icons, characters, window art (needs Pillow and the packs)
+  map_maker.py          the map maker (python tools/map_maker.py): maps-src/ -> src/data/maps.js
+                        and src/data/tiles.js
+  map-maker/            the map maker's pages (maps and tiles; Looks for characters)
 ```
 
 Only `index.html`, `src/`, `assets/`, `lib/`, `icon.svg` and `LICENSE` go into the game's zip (see
@@ -130,15 +139,21 @@ Only `index.html`, `src/`, `assets/`, `lib/`, `icon.svg` and `LICENSE` go into t
 
 ## Art
 
-The art comes from **Petixel** packs bought on itch.io: Farmlands, Atolls, Savanah, Desert, Base
-Characters, Hair and Main UI. We may edit them freely, but they **must not be used to train
-image-generation AI**, and they can't be shared as packs.
+The art comes from **Petixel** packs bought on itch.io: Farmlands, Atolls, Savanah, Desert,
+Provence, Prototype, Base Characters, Hair and Main UI. We may edit them freely, but they **must not
+be used to train image-generation AI**, and they can't be shared as packs.
+
+No picture is drawn in code: every one comes from a sheet in `art-src/`.
 
 - **The original packs are not in this repository**, which is public. Keep them on your own
-  computer in `art-src/petixel/`. `.gitignore` keeps that folder out of git.
-- `assets/` holds only the images the game uses, built from the packs by
-  `tools/build_assets.py`. Run it, then `python tools/map_maker.py --build`, after changing art.
-- Add new tiles at the end of the list in `build_assets.py` so existing maps keep working.
+  computer in `art-src/petixel/`, and pictures made from them in `art-src/made/`. `.gitignore`
+  keeps both out of git. `art-src/own/` holds the game's own drawings and is shared.
+- `assets/` holds only the images the game uses. The **map maker** draws `tiles.png` and
+  `objects.png` from its tile list (`maps-src/tiles.json`) when you save, so tiles are added and
+  redrawn only on a computer with the packs; everyone can paint maps. `tools/build_assets.py`
+  makes the item icons, characters and window art.
+- Edit a picture in its sheet (Aseprite, LibreSprite...), then save in the map maker (tiles) or run
+  `tools/build_assets.py` (the rest).
 
 Characters are made by a palette swap: one body sheet and one hair sheet give every skin tone,
 hair colour and outfit (`src/data/appearance.js`, `src/core/charRecolor.js`).
@@ -149,10 +164,13 @@ hair colour and outfit (`src/data/appearance.js`, `src/core/charRecolor.js`).
   `python tools/map_maker.py` (see [docs/MAP_MAKER.md](docs/MAP_MAKER.md)). It saves the maps in
   `maps-src/` and builds `src/data/maps.js`; every map is an area, with the id and settings saved in
   the map. The object types are listed at the top of `src/data/areas.js`.
-- **A crop:** its pictures in `build_assets.py` (`CROPS`), an entry in `src/data/crops.js`, seed
-  and produce in `src/data/items.js`, names in `src/data/strings.js`.
-- **A villager:** an entry with a `look` in `src/data/npcs.js`, lines in `strings.js`, and an `npc`
-  object in a map.
+- **Tiles, animated tiles, autotiles (water), animated objects:** in the map maker, from the art
+  (see [docs/MAP_MAKER.md](docs/MAP_MAKER.md)).
+- **A crop:** its four growth pictures as tiles called `crop_<key>_0` to `crop_<key>_3` (map maker),
+  an entry in `src/data/crops.js`, seed and produce in `src/data/items.js` (icons in
+  `build_assets.py`), names in `src/data/strings.js`.
+- **A villager:** an entry with a `look` in `src/data/npcs.js` (the map maker's Looks page can set
+  it), lines in `strings.js`, and an `npc` object in a map.
 - **A currency** (Kissi pennies): see the top of `src/data/currencies.js`.
 
 ## Save rules

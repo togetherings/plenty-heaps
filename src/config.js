@@ -42,18 +42,19 @@
     MS_PER_GAME_MINUTE: 700,
     DAY_START_MIN: 6 * 60,             // 06:00
     DAY_END_MIN: 24 * 60,              // 24:00 -> player passes out
-    NIGHT_START_MIN: 18 * 60,          // screen starts to darken
     // Save every few real seconds while playing (when something changed). In
     // Kolibri, only what reached it before the learner leaves the resource is
     // kept: a save made as the page closes arrives too late there.
     SAVE_EVERY_MS: 5000,
 
     // ---- Calendar -----------------------------------------------------------
-    // Two seasons. The game starts at the beginning of the rainy season, which
-    // matches the real planting time (around May).
-    SEASON_DAYS: 28,
-    SEASONS: ['rainy', 'dry'],         // index 0 and 1 - order matters for saves
-    RAIN_CHANCE: { rainy: 0.65, dry: 0.05 },
+    // Four seasons of 12 days, following the region's real year (calendar.js).
+    // The game starts on First Rain 1, the real planting time (around May).
+    // The season is worked out from the day number, so changing these moves
+    // existing farms into another season: settle them before release.
+    // Rain is in weather.js; sun, moon and tides in sky.js.
+    SEASON_DAYS: 12,
+    SEASONS: ['firstrain', 'bigrain', 'harmattan', 'warm'],
 
     // ---- Inventory ----------------------------------------------------------
     INVENTORY_SLOTS: 10,               // also the hotbar size in this slice

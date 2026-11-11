@@ -81,15 +81,16 @@
       const state = FS.Session.state;
       const outdoor = FS.currentArea && FS.currentArea.outdoor;
 
-      // Night: darken gradually from 18:00 to 22:00.
-      const dark = outdoor ? Phaser.Math.Clamp((state.time - C.NIGHT_START_MIN) / 240, 0, 1) * 0.55 : 0;
+      // Night: dark from dusk to first light, fading through twilight (sky.js).
+      const dark = outdoor ? (1 - FS.Sky.light(state.day, state.time)) * 0.55 : 0;
       this.night.setFillStyle(0x0a1038, dark);
 
-      // Rain streaks.
+      // Rain streaks: heavier and faster in a storm.
       this.rain.clear();
-      if (!outdoor || !FS.State.isRaining(state)) return;
-      this.rain.lineStyle(1, 0xb8d4ff, 0.55);
-      const fall = delta * 0.45;
+      const spell = outdoor ? FS.Weather.spellAt(state.seed, state.day, state.time) : null;
+      if (!spell) return;
+      this.rain.lineStyle(1, 0xb8d4ff, spell.heavy ? 0.7 : 0.45);
+      const fall = delta * (spell.heavy ? 0.6 : 0.4);
       this.drops.forEach(function (d) {
         d.y += fall; d.x -= fall * 0.25;
         if (d.y > H) { d.y = -d.len; d.x = Math.random() * (W + 40); }

@@ -6,14 +6,16 @@
  * an area means adding a map and a line in data/areas.js - not new code.
  *
  * What it does:
- *   - builds the area from its Tiled map (layers, collisions, objects)
+ *   - builds the area from its map as it looks now (mapView.js: the season,
+ *     rain and tide change some tiles), with collisions and objects, and
+ *     updates it as the rain starts and stops and the tide comes and goes
  *   - places the player and villagers
  *   - moves the player from FarmSim.Controls (keyboard + touch, set by UIScene)
  *   - handles the action button: talk, gift, ship, sleep, read signs, farm
  *   - runs the clock, autosaves, and handles sleeping / passing out
  *
  * Drawing order (depth), back to front:
- *   0 ground  |  1 heaps  |  2 crops  |  2.5 target cursor
+ *   0 ground  |  0.5 shore foam  |  1 heaps  |  2 crops  |  2.5 target cursor
  *   3 decor (bases of trees, walls)  |  4+ characters and critters, sorted
  *   by where their feet are  |  1000 "above" (roofs, tree tops)
  *
@@ -72,46 +74,66 @@
       // Save after moving between areas (cheap, and protects progress).
       if (this.arrivedByWarp) FS.Session.save();
 
+      // Rain that has already watered today's field (quietly: the morning message says it's raining).
+      this.checkRain(false);
+
       // Messages to show once the screen has faded in.
       this.time.delayedCall(350, this.showArrivalMessages, [], this);
     }
 
     // ===================================================================== MAP
+    /** What the map depends on right now: season, rain, tide level, night. */
+    mapConditions() {
+      const state = FS.Session.state;
+      const raw = FS.Maps[this.area.map];
+      return {
+        season: FS.State.calendar(state).season,
+        rain: this.area.outdoor && FS.State.isRaining(state),
+        tide: FS.MapView.hasTide(raw) ? FS.Sky.tideLevel(state.day, state.time, this.area) : null,
+        night: FS.Sky.light(state.day, state.time) < 0.5
+      };
+    }
+
     buildMap() {
-      const map = this.map = this.make.tilemap({ key: this.area.map });
-      // 'tiles' = tileset name in Tiled, 'tiles' = image key loaded in BootScene.
+      const raw = FS.Maps[this.area.map];
+      this.conditions = this.mapConditions();
+      this.view = FS.MapView.build(raw, this.conditions);
+      // Phaser gets the map as it looks now: the three tile layers from the view, the objects, and
+      // only the tile image's tileset (the collision and tide layers are read by FS.Areas).
+      const view = this.view;
+      const data = Object.assign({}, raw, {
+        layers: raw.layers.filter(function (l) { return l.type === 'objectgroup' || FS.MapView.LAYERS.indexOf(l.name) !== -1; })
+          .map(function (l) { return l.type === 'tilelayer' ? Object.assign({}, l, { data: view[l.name] }) : l; }),
+        tilesets: raw.tilesets.filter(function (t) { return t.name === 'tiles'; })
+      });
+      if (this.cache.tilemap.exists('view')) this.cache.tilemap.remove('view');
+      this.cache.tilemap.add('view', { format: Phaser.Tilemaps.Formats.TILED_JSON, data: data });
+      const map = this.map = this.make.tilemap({ key: 'view' });
+      // 'tiles' = tileset name in the map, 'tiles' = the canvas texture made in BootScene (TileArt.js).
       const tileset = this.tileset = map.addTilesetImage('tiles', 'tiles');
+      const solid = FS.Tiles.collides.map(FS.Tiles.gid);
 
       this.groundLayer = map.createLayer('ground', tileset, 0, 0).setDepth(0);
       this.decorLayer = map.createLayer('decor', tileset, 0, 0).setDepth(3);
-      // Tiles with the custom property collides=true (set on the tileset in
-      // Tiled) block movement. Water is on the ground layer, so check both.
-      this.groundLayer.setCollisionByProperty({ collides: true });
-      this.decorLayer.setCollisionByProperty({ collides: true });
-
-      // Layer drawn over the player (roofs, tree tops). Optional.
-      this.aboveLayer = null;
-      if (map.layers.some(function (l) { return l.name === 'above'; })) {
-        this.aboveLayer = map.createLayer('above', tileset, 0, 0).setDepth(1000);
-        this.aboveLayer.setCollisionByProperty({ collides: true });
-      }
+      // Layer drawn over the player (roofs, tree tops).
+      this.aboveLayer = map.createLayer('above', tileset, 0, 0).setDepth(1000);
+      // Solid tiles (the tile list's "solid") block movement on every layer.
+      this.tileLayers = [this.groundLayer, this.decorLayer, this.aboveLayer];
+      this.tileLayers.forEach(function (l) { l.setCollision(solid); });
 
       // The collision layer (optional): squares blocked or opened one by one,
       // whatever tiles are there. Blocked squares go on an invisible layer.
-      const changes = FS.Areas.collision(this.area.map);
+      const changes = this.collisionChanges = FS.Areas.collision(this.area.map);
       this.blockedLayer = null;
       if (changes.block.length) {
         this.blockedLayer = map.createBlankLayer('blocked', tileset).setVisible(false);
         changes.block.forEach(function (c) { this.blockedLayer.putTileAt(1, c[0], c[1]); }, this);
         this.blockedLayer.setCollision(1);
       }
-      const tileLayers = [this.groundLayer, this.decorLayer, this.aboveLayer];
-      changes.open.forEach(function (c) {
-        tileLayers.forEach(function (l) {
-          const t = l && l.getTileAt(c[0], c[1]);
-          if (t && t.collides) { t.resetCollision(false); l.calculateFacesAt(c[0], c[1]); }
-        });
-      });
+      this.openSquares();
+      this.foam = [];
+      this.placeFoam();
+      FS.TileArt.use([view.ground, view.decor, view.above]);
 
       // Rooms (interiors maps): the camera keeps to the room the player is in.
       this.rooms = FS.Areas.rooms(this.area.map);
@@ -127,6 +149,85 @@
       }
 
       this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+    }
+
+    /** Squares the collision layer opens: walkable whatever tiles are there. */
+    openSquares() {
+      this.collisionChanges.open.forEach(function (c) {
+        this.tileLayers.forEach(function (l) {
+          const t = l.getTileAt(c[0], c[1]);
+          if (t && t.collides) { t.resetCollision(false); l.calculateFacesAt(c[0], c[1]); }
+        });
+      }, this);
+    }
+
+    /** Put a gid (with flip flags) on a square of a layer. */
+    setCell(layer, x, y, g) {
+      if (!g) { layer.removeTileAt(x, y); return; }
+      const tr = FS.MapView.tileTransform(g);
+      const tile = layer.putTileAt(tr.index, x, y);
+      tile.flipX = tr.flipX;
+      tile.rotation = tr.rotation;
+    }
+
+    /**
+     * The season, rain or tide changed: redraw the squares that look different now. The player
+     * is moved off any square that has become solid (water at a rising tide).
+     */
+    refreshMap() {
+      const next = this.mapConditions();
+      const c = this.conditions;
+      if (next.rain === c.rain && next.tide === c.tide && next.night === c.night && next.season === c.season) return;
+      this.conditions = next;
+      const view = FS.MapView.build(FS.Maps[this.area.map], next);
+      const w = this.map.width;
+      let groundChanged = false;
+      FS.MapView.LAYERS.forEach(function (name, i) {
+        const before = this.view[name], after = view[name], layer = this.tileLayers[i];
+        for (let k = 0; k < after.length; k++) {
+          if (before[k] === after[k]) continue;
+          this.setCell(layer, k % w, Math.floor(k / w), after[k]);
+          if (i === 0) groundChanged = true;
+        }
+      }, this);
+      this.view = view;
+      this.openSquares();
+      if (groundChanged) this.placeFoam();
+      FS.TileArt.use([view.ground, view.decor, view.above]);
+      const f = this.feet();
+      const tx = Math.floor(f.x / T), ty = Math.floor(f.y / T);
+      if (!this.isWalkableTile(tx, ty)) {
+        const spot = this.nearestWalkable(tx, ty);
+        if (spot) this.player.setPosition(spot.x * T + T / 2, spot.y * T + T / 2 - C.FEET_Y);
+      }
+    }
+
+    nearestWalkable(tx, ty) {
+      for (let r = 1; r < 12; r++) {
+        for (let dy = -r; dy <= r; dy++) {
+          for (let dx = -r; dx <= r; dx++) {
+            if (Math.max(Math.abs(dx), Math.abs(dy)) === r && this.isWalkableTile(tx + dx, ty + dy)) return { x: tx + dx, y: ty + dy };
+          }
+        }
+      }
+      return null;
+    }
+
+    /** Shore foam along the water's edge (FarmSim.Tiles.shore), moving with the tide. */
+    placeFoam() {
+      this.foam.forEach(function (s) { s.destroy(); });
+      this.foam = [];
+      if (!this.area.outdoor || !FS.Tiles.shore) return;
+      FS.MapView.shoreFoam(this.view, this.map.width, this.map.height).forEach(function (p) {
+        const name = FS.Tiles.shore[p.side];
+        if (!name || !FS.Tiles.objects[name]) return;
+        const origin = { south: [0.5, 1, 0.5, 1], north: [0.5, 0, 0.5, 0], east: [1, 0.5, 1, 0.5], west: [0, 0.5, 0, 0.5] }[p.side];
+        const s = this.add.sprite((p.x + origin[2]) * T, (p.y + origin[3]) * T, 'objects', name + '_0')
+          .setOrigin(origin[0], origin[1]).setDepth(0.5);
+        const n = FS.Tiles.objects[name].frames.length;
+        s.anims.play({ key: 'obj-' + name, startFrame: (p.x + p.y) % n });
+        this.foam.push(s);
+      }, this);
     }
 
     /** Redraw one field tile from the state. c, r are field coordinates. */
@@ -194,6 +295,15 @@
         } else if (type === 'critter') {
           this.addCritter(A.prop(o, 'kind', 'hen'), cx, cy);
 
+        } else if (type === 'anim') {
+          // An animated object (FarmSim.Tiles.objects), standing on the bottom of its box.
+          const name = A.prop(o, 'sprite');
+          if (FS.Tiles.objects[name]) {
+            const bottom = o.y + o.height;
+            this.add.sprite(cx, bottom, 'objects', name + '_0').setOrigin(0.5, 1)
+              .setDepth(4 + bottom / 10000).anims.play('obj-' + name);
+          }
+
         } else if (type === 'ship' || type === 'bed' || type === 'sign') {
           this.interactables.push({ type: type, obj: o, rect: new Phaser.Geom.Rectangle(o.x - 2, o.y - 2, o.width + 4, o.height + 4) });
         }
@@ -252,6 +362,7 @@
     isWalkableTile(tx, ty) {
       if (tx < 0 || ty < 0 || tx >= this.map.width || ty >= this.map.height) return false;
       const layers = [this.groundLayer, this.decorLayer, this.aboveLayer, this.blockedLayer];
+      if (!this.groundLayer) return true;
       for (let i = 0; i < layers.length; i++) {
         if (!layers[i]) continue;
         const t = layers[i].getTileAt(tx, ty);
@@ -326,6 +437,7 @@
       }
 
       this.player.setDepth(4 + this.feet().y / 10000);
+      FS.TileArt.update(time);
       this.updateCritters(delta);
       if (!this.transitioning) this.updateSavedPosition();
       if (this.rooms.length) {
@@ -362,9 +474,15 @@
     /** Advance game time; save every few seconds; pass out at midnight. */
     runClock(delta, state) {
       this.minuteTimer += delta;
+      let ticked = false;
       while (this.minuteTimer >= C.MS_PER_GAME_MINUTE) {
         this.minuteTimer -= C.MS_PER_GAME_MINUTE;
         state.time++;
+        ticked = true;
+      }
+      if (ticked) {
+        this.checkRain(true);
+        this.refreshMap();
       }
       this.saveTimer += delta;
       if (this.saveTimer >= C.SAVE_EVERY_MS) {
@@ -372,6 +490,16 @@
         FS.Session.saveIfChanged();
       }
       if (state.time >= C.DAY_END_MIN) this.sleep(true);
+    }
+
+    /** Once today's rain adds up to enough, the field is watered (weather.js). */
+    checkRain(tell) {
+      const state = FS.Session.state;
+      if (!FS.State.rainHasWatered(state)) return;
+      const n = FS.Farming.rainWater(state);
+      if (!n) return;
+      if (this.plot) this.drawWholeField();
+      if (tell && this.area.outdoor) FS.UI.toast(FS.t('rain_watered'));
     }
 
     /** Show the white square on the field tile in front of the player. */
@@ -455,7 +583,7 @@
       else if (code === 'wrong_season') {
         FS.UI.toast(FS.t('msg_wrong_season', {
           item: FS.itemName(item.id),
-          season: FS.t('season_' + FS.State.calendar(state).season).toLowerCase()
+          season: FS.t('season_' + FS.State.calendar(state).season)
         }));
       }
       this.drawFieldTile(c, r);
@@ -570,8 +698,8 @@
       if (this.morning) {
         const m = this.morning, cal = FS.State.calendar(state);
         if (m.passedOut) pages.push({ text: FS.t('passed_out') });
-        if (m.newSeason) pages.push({ text: FS.t('season_start', { season: FS.t('season_' + m.newSeason).toLowerCase() }) });
-        let text = FS.t('morning', { day: cal.dayOfSeason, season: FS.t('season_' + cal.season).toLowerCase() });
+        if (m.newSeason) pages.push({ text: FS.t('season_start', { season: FS.t('season_' + m.newSeason) }) });
+        let text = FS.t('morning', { day: cal.dayOfSeason, season: FS.t('season_' + cal.season) });
         if (m.earned > 0) text += ' ' + FS.t('morning_earned', { money: FS.Wallet.format('cowrie', m.earned) });
         if (m.rain) text += ' ' + FS.t('morning_rain');
         pages.push({ text: text });

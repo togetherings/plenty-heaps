@@ -78,25 +78,14 @@
     emptyFarmTile: emptyFarmTile,
 
     // ---------------------------------------------------------------- calendar
-    /** Season, day-of-season and year for the current day. */
-    calendar: function (state) {
-      const d = state.day;
-      const seasonIndex = Math.floor(d / C.SEASON_DAYS) % C.SEASONS.length;
-      return {
-        seasonIndex: seasonIndex,
-        season: C.SEASONS[seasonIndex],
-        dayOfSeason: (d % C.SEASON_DAYS) + 1,
-        year: Math.floor(d / (C.SEASON_DAYS * C.SEASONS.length)) + 1
-      };
-    },
+    /** Season, day of season, day of year and year for the current day (calendar.js). */
+    calendar: function (state) { return FS.Calendar.of(state.day); },
 
-    /** Is it raining on a given day? Worked out from the seed, never saved. */
-    isRainingOn: function (seed, day) {
-      const season = C.SEASONS[Math.floor(day / C.SEASON_DAYS) % C.SEASONS.length];
-      return FS.Rng.forDay(seed, day, 'weather')() < C.RAIN_CHANCE[season];
-    },
+    /** Is it raining right now? Worked out from the seed, never saved (weather.js). */
+    isRaining: function (state) { return FS.Weather.isRainingAt(state.seed, state.day, state.time); },
 
-    isRaining: function (state) { return State.isRainingOn(state.seed, state.day); },
+    /** Has today's rain watered the crops yet (4 hours of rain, storms counting double)? */
+    rainHasWatered: function (state) { return FS.Weather.watered(state.seed, state.day, state.time); },
 
     /** "06:30" style clock text. */
     clockText: function (minutes) {
