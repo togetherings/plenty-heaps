@@ -2,7 +2,8 @@
  * BootScene.js
  * ============
  * Runs once at start-up:
- *   1. Loads the images (tiles, characters, hair, critters, icons, UI).
+ *   1. Loads the images (tiles, animated objects, characters, hair, critters,
+ *      icons, UI) and makes the animated tile texture (TileArt.js).
  *   2. Registers the Tiled maps (already loaded as scripts) with Phaser.
  *   3. Builds every villager's sprite sheet from their look (npcs.js), and
  *      the player's if they have already made their character.
@@ -32,7 +33,8 @@
       this.add.rectangle(w / 2, h / 2, 204, 12).setStrokeStyle(1, 0xf8f4de);
       this.load.on('progress', function (p) { bar.width = 200 * p; });
 
-      this.load.image('tiles', 'assets/tiles.png');
+      this.load.image('tiles_src', 'assets/tiles.png');
+      this.load.image('objects', 'assets/objects.png');
       this.load.spritesheet('items', 'assets/items.png', { frameWidth: 16, frameHeight: 16 });
       this.load.image('body_m', 'assets/chars/body_m.png');
       this.load.image('body_f', 'assets/chars/body_f.png');
@@ -46,11 +48,9 @@
     }
 
     create() {
-      // Maps were loaded as <script> files into FarmSim.Maps; hand them to
-      // Phaser's tilemap cache as if they had been loaded as JSON.
-      Object.keys(FS.Maps).forEach(function (key) {
-        this.cache.tilemap.add(key, { format: Phaser.Tilemaps.Formats.TILED_JSON, data: FS.Maps[key] });
-      }, this);
+      // The tile texture (with animated tiles) and the animated objects.
+      // (The World scene hands Phaser each map as it looks at the moment: see mapView.js.)
+      FS.TileArt.init(this);
 
       // Critter walking animations (frames 0,1,2,1 per direction row).
       Object.keys(FS.CRITTERS).forEach(function (k) { FS.CharacterArt.makeWalkAnims(this, k, 6); }, this);

@@ -3,7 +3,8 @@
  * run-tests.js
  * ============
  * Automated checks for the parts of the game that don't need a screen:
- * the save format, the farming rules and the overnight day logic.
+ * the save format, the farming rules, the overnight day logic, the calendar,
+ * rain, sun, moon and tides, and how maps look (seasons, rain, tide, autotiles).
  *
  * Run from the project folder:   node tests/run-tests.js
  *
@@ -20,10 +21,11 @@ const assert = require('assert');
 const SRC = path.join(__dirname, '..', 'src');
 [
   'namespace.js', 'config.js',
-  'core/bitpack.js', 'core/rng.js',
+  'core/bitpack.js', 'core/rng.js', 'core/calendar.js',
   'data/registry.js', 'data/tiles.js', 'data/crops.js', 'data/items.js',
   'data/npcs.js', 'data/flags.js', 'data/currencies.js', 'data/appearance.js',
   'data/maps.js', 'data/areas.js', 'data/strings.js',
+  'core/weather.js', 'core/sky.js', 'core/mapView.js',
   'core/gameState.js', 'core/farming.js', 'core/day.js',
   'core/saveCodec.js', 'core/storage.js', 'core/session.js', 'core/charRecolor.js'
 ].forEach(f => require(path.join(SRC, f)));
@@ -37,11 +39,17 @@ function test(name, fn) {
   catch (e) { failed++; console.log('  FAIL ' + name + '\n       ' + e.message); }
 }
 
-/** Find a seed whose first day is (or isn't) rainy, to make tests predictable. */
+/** Find a seed whose first day does (or doesn't) get any rain, to make tests predictable. */
 function seedWithRain(day0Rain) {
-  for (let s = 1; s < 10000; s++) if (FS.State.isRainingOn(s, 0) === day0Rain) return s;
+  for (let s = 1; s < 10000; s++) if (FS.Weather.rainyDay(s, 0) === day0Rain) return s;
   throw new Error('no seed found');
 }
+/** A seed with no rain on any of the given days. */
+function seedDryOn(days) {
+  for (let s = 1; s < 100000; s++) if (days.every(d => !FS.Weather.rainyDay(s, d))) return s;
+  throw new Error('no seed found');
+}
+const season = name => C.SEASONS.indexOf(name) * C.SEASON_DAYS;   // first day of a season (year 1)
 
 console.log('\nBit packing');
 test('bits round-trip, including full 32-bit values', () => {
@@ -79,7 +87,9 @@ test('every crop grows within the 5-bit growth limit', () => {
     assert.ok(c.growDays <= 30, c.key);
     assert.ok(c.regrowDays < c.growDays || c.regrowDays === 0, c.key + ' regrow');
     assert.ok(FS.Items.has(c.produce), c.key + ' produce item');
-    assert.ok(typeof FS.Tiles.CROP_FIRST[c.key] === 'number', c.key + ' has growth pictures (build_assets.py)');
+    [0, 1, 2, 3].forEach(st => assert.ok(typeof FS.Tiles.names['crop_' + c.key + '_' + st] === 'number',
+      c.key + ' has growth pictures (the tiles crop_' + c.key + '_0 to _3)'));
+    c.seasons.forEach(se => assert.ok(C.SEASONS.indexOf(se) !== -1, c.key + ': unknown season ' + se));
   });
 });
 test('every seed points to a real crop, every string exists', () => {
@@ -124,11 +134,9 @@ test('till, plant, water, grow, harvest maize', () => {
   assert.strictEqual(res.code, 'harvested');
   assert.strictEqual(FS.Farming.tile(s, 0, 0).crop, FS.CROP_NONE, 'maize does not regrow');
 });
-test('unwatered crops do not grow (in dry season)', () => {
+test('unwatered crops do not grow (in the dry season)', () => {
   const s = FS.State.newGame(1);
-  s.day = C.SEASON_DAYS; // first dry-season day
-  // find a dry day
-  while (FS.State.isRaining(s)) s.day++;
+  s.day = season('harmattan');
   FS.Farming.till(s, 1, 1);
   FS.Farming.plant(s, 1, 1, FS.Items.get('seed_pepper'));
   s.farm.tiles.forEach(t => { t.watered = false; });
@@ -137,7 +145,7 @@ test('unwatered crops do not grow (in dry season)', () => {
   assert.strictEqual(FS.Farming.tile(s, 1, 1).growth, before);
 });
 test('wrong-season seeds cannot be planted', () => {
-  const s = FS.State.newGame(1); // starts in rainy season
+  const s = FS.State.newGame(1); // starts in First Rain
   FS.Farming.till(s, 2, 2);
   assert.strictEqual(FS.Farming.plant(s, 2, 2, FS.Items.get('seed_pepper')), 'wrong_season');
 });
@@ -153,32 +161,173 @@ test('regrowing crop stays planted after harvest', () => {
 });
 test('season change withers out-of-season crops', () => {
   const s = FS.State.newGame(1);
-  FS.Farming.till(s, 0, 0); FS.Farming.plant(s, 0, 0, FS.Items.get('seed_maize'));      // rainy only
-  FS.Farming.till(s, 1, 0); FS.Farming.plant(s, 1, 0, FS.Items.get('seed_cassava'));    // both seasons
-  s.day = C.SEASON_DAYS - 1;
+  FS.Farming.till(s, 0, 0); FS.Farming.plant(s, 0, 0, FS.Items.get('seed_maize'));      // First Rain, Big Rain
+  FS.Farming.till(s, 1, 0); FS.Farming.plant(s, 1, 0, FS.Items.get('seed_cassava'));    // every season
+  s.day = season('bigrain') - 1;
+  assert.strictEqual(FS.Day.endDay(s).newSeason, 'bigrain');
+  assert.strictEqual(FS.Farming.tile(s, 0, 0).crop, FS.Crops.get('maize').id, 'maize grows on into Big Rain');
+  s.day = season('harmattan') - 1;
   const sum = FS.Day.endDay(s);
-  assert.strictEqual(sum.newSeason, 'dry');
+  assert.strictEqual(sum.newSeason, 'harmattan');
   assert.strictEqual(FS.Farming.tile(s, 0, 0).crop, FS.CROP_WITHERED);
   assert.strictEqual(FS.Farming.tile(s, 1, 0).crop, FS.Crops.get('cassava').id);
   assert.strictEqual(FS.Farming.till(s, 0, 0), 'cleared', 'hoe clears withered plant');
 });
-test('shipping pays out overnight, energy restores, rain waters soil', () => {
+test('shipping pays out overnight, energy restores', () => {
   const s = FS.State.newGame(1);
-  FS.Farming.till(s, 0, 0);
   s.shipped = 120; s.energy = 3;
   const sum = FS.Day.endDay(s);
   assert.strictEqual(sum.earned, 120);
   assert.strictEqual(FS.Wallet.get(s, 'cowrie'), C.START_WALLET.cowrie + 120);
   assert.strictEqual(s.energy, C.MAX_ENERGY);
-  assert.strictEqual(FS.Farming.tile(s, 0, 0).watered, sum.rain);
 });
-test('rainy season is mostly rainy, dry season mostly dry', () => {
-  let rainy = 0, dry = 0;
-  for (let d = 0; d < C.SEASON_DAYS; d++) {
-    if (FS.State.isRainingOn(777, d)) rainy++;
-    if (FS.State.isRainingOn(777, d + C.SEASON_DAYS)) dry++;
+
+console.log('\nCalendar and rain');
+test('four seasons of 12 days, starting with First Rain', () => {
+  assert.deepStrictEqual(C.SEASONS, ['firstrain', 'bigrain', 'harmattan', 'warm']);
+  assert.strictEqual(FS.Calendar.yearDays(), 48);
+  assert.deepStrictEqual(FS.Calendar.of(0), { seasonIndex: 0, season: 'firstrain', dayOfSeason: 1, dayOfYear: 1, year: 1 });
+  assert.deepStrictEqual(FS.Calendar.of(30), { seasonIndex: 2, season: 'harmattan', dayOfSeason: 7, dayOfYear: 31, year: 1 });
+  assert.strictEqual(FS.Calendar.of(48).year, 2);
+});
+test('rain comes in spells; the rainy seasons are much wetter than the dry ones', () => {
+  const days = {};
+  C.SEASONS.forEach(se => { days[se] = 0; });
+  for (let seed = 1; seed <= 40; seed++) {
+    for (let d = 0; d < 48; d++) {
+      const spells = FS.Weather.spells(seed, d);
+      spells.forEach(sp => {
+        assert.ok(sp.start >= 0 && sp.end <= 1440 && sp.end > sp.start, 'spell inside the day');
+        assert.strictEqual(sp.start % 10, 0, 'starts on a 10-minute mark');
+      });
+      if (spells.length) days[FS.Calendar.season(d)]++;
+    }
   }
-  assert.ok(rainy > dry, 'rainy ' + rainy + ' vs dry ' + dry);
+  const pct = se => days[se] / (40 * 12);
+  assert.ok(pct('firstrain') > 0.45 && pct('firstrain') < 0.75, 'First Rain ' + pct('firstrain'));
+  assert.ok(pct('bigrain') > 0.75, 'Big Rain ' + pct('bigrain'));
+  assert.ok(pct('harmattan') < 0.1, 'Harmattan ' + pct('harmattan'));
+  assert.ok(pct('warm') < 0.25, 'Warm Season ' + pct('warm'));
+  // Dry-season rain is always short, so it never waters the crops.
+  for (let seed = 1; seed <= 300; seed++) {
+    for (let d = season('harmattan'); d < season('warm'); d++) assert.ok(!FS.Weather.watered(seed, d), 'harmattan rain waters');
+  }
+});
+test('rain waters the field only after 4 hours (storms count double)', () => {
+  const W = FS.Weather;
+  // A made-up day: a 3-hour shower, then a 30-minute storm.
+  const spells = W.spells, key = [];
+  W.spells = () => [{ start: 600, end: 780, heavy: false }, { start: 900, end: 930, heavy: true }];
+  try {
+    assert.strictEqual(W.rainMinutes(1, 5, 700), 100);
+    assert.ok(!W.watered(1, 5, 899), '3 hours is not enough');
+    assert.ok(!W.watered(1, 5, 915), '3 h 30 min (a storm counts double) is not enough yet');
+    assert.ok(W.watered(1, 5, 930), '3 h + 30 min of storm = 4 h');
+    assert.ok(W.isRainingAt(1, 5, 700) && !W.isRainingAt(1, 5, 800));
+    // The field: watered by the day's rain, even after bedtime
+    const s = FS.State.newGame(1); s.day = 5; s.time = 700;
+    FS.Farming.till(s, 0, 0);
+    assert.ok(!FS.Farming.tile(s, 0, 0).watered, 'not yet');
+    FS.Farming.plant(s, 0, 0, FS.Items.get('seed_cassava'));
+    FS.Day.endDay(s);
+    assert.strictEqual(FS.Farming.tile(s, 0, 0).growth, 1, 'grew: the rain (after bedtime) watered it');
+  } finally { W.spells = spells; }
+});
+
+console.log('\nSun, moon and tides');
+test('sunrise and sunset at Lungi, to the minute (DESIGN.md)', () => {
+  const hm = m => { const r = Math.round(m); return String(Math.floor(r / 60)).padStart(2, '0') + ':' + String(r % 60).padStart(2, '0'); };
+  const table = {
+    1: ['06:13', '06:35', '12:49', '19:03', '19:25'], 7: ['06:12', '06:35', '12:54', '19:13', '19:36'],
+    13: ['06:23', '06:45', '12:59', '19:13', '19:35'], 19: ['06:22', '06:43', '12:46', '18:50', '19:10'],
+    25: ['06:22', '06:43', '12:37', '18:30', '18:51'], 31: ['06:39', '07:02', '12:50', '18:39', '19:02'],
+    37: ['06:51', '07:13', '13:06', '19:00', '19:21'], 43: ['06:36', '06:57', '13:00', '19:04', '19:25']
+  };
+  Object.keys(table).forEach(d => {
+    const s = FS.Sky.sun(Number(d));
+    assert.deepStrictEqual([s.firstLight, s.sunrise, s.noon, s.sunset, s.dark].map(hm), table[d], 'day of year ' + d);
+  });
+  assert.strictEqual(FS.Sky.light(6, 13 * 60), 1, 'midday is light');
+  assert.strictEqual(FS.Sky.light(6, 22 * 60), 0, 'night is dark');
+  const tw = FS.Sky.light(6, 19 * 60 + 25);
+  assert.ok(tw > 0 && tw < 1, 'twilight is in between');
+});
+test('an 11-day moon; tides every 13 h 12 min, biggest at full and new moon', () => {
+  assert.strictEqual(FS.Sky.moonAge(0, 0), 0, 'full at the start');
+  assert.strictEqual(FS.Sky.moonLit(0, 0), 1);
+  assert.ok(FS.Sky.moonLit(5, 12 * 60) < 0.01, 'new after 5 and a half days');
+  assert.strictEqual(FS.Sky.moonAge(11, 0), 0, 'full again after 11 days');
+  // High tides 13 h 12 min apart, 2 h 24 min later each day
+  const h0 = FS.Sky.highTides(0), h1 = FS.Sky.highTides(1);
+  assert.deepStrictEqual(h0, [0, 792]);
+  assert.strictEqual(h1[0], 144, 'the next day\'s first high tide is 2 h 24 min later');
+  assert.strictEqual(FS.Sky.tideLevel(0, 0), 4, 'high tide at full moon: level 4');
+  assert.strictEqual(FS.Sky.tideLevel(0, 396), 0, 'low tide 6 h 36 min later: level 0');
+  // Neaps at half moon: smaller range
+  const neap = Math.abs(FS.Sky.tideHeight(2, 18 * 60)), spring = Math.abs(FS.Sky.tideHeight(0, 0));
+  assert.ok(FS.Sky.tideRange(2, 18 * 60) < 0.8 && FS.Sky.tideRange(0, 0) > 1.2, 'neap ' + neap + ' spring ' + spring);
+  // Up a creek: later and smaller
+  assert.ok(FS.Sky.tideLevel(0, 0, { tideDelay: 0, tideSize: 0.5 }) <= 3, 'half-size tide never reaches the top level');
+  assert.strictEqual(FS.Sky.tideHeight(0, 60, { tideDelay: 60, tideSize: 1 }), FS.Sky.tideHeight(0, 0));
+});
+
+console.log('\nHow maps look');
+const T0 = FS.Tiles;
+function testMap(w, h, extra) {
+  const m = { width: w, height: h, layers: [], tilesets: [{ name: 'tiles', firstgid: 1 }, { name: 'collision', firstgid: 100001 }, { name: 'tide', firstgid: 100003 }], properties: [] };
+  ['ground', 'decor', 'above'].forEach(n => m.layers.push({ name: n, type: 'tilelayer', data: new Array(w * h).fill(n === 'ground' ? T0.idx('grass') + 1 : 0) }));
+  (extra || []).forEach(l => m.layers.push(l));
+  return m;
+}
+test('layers shown only in the rain, a season or at a tide', () => {
+  const MV = FS.MapView;
+  assert.ok(MV.conditionMet('rain', { rain: true }) && !MV.conditionMet('rain', { rain: false }));
+  assert.ok(MV.conditionMet('season:harmattan,warm', { season: 'warm' }) && !MV.conditionMet('season:harmattan', { season: 'warm' }));
+  assert.ok(MV.conditionMet('tide:0-1', { tide: 1 }) && !MV.conditionMet('tide:0-1', { tide: 2 }) && !MV.conditionMet('tide:3', {}));
+  assert.ok(MV.conditionMet('rain&night', { rain: true, night: true }) && !MV.conditionMet('rain&night', { rain: true }));
+  const puddle = T0.idx('sand') + 1;
+  const m = testMap(3, 2, [{ name: 'puddles', type: 'tilelayer', data: [0, puddle, 0, 0, 0, 0],
+    properties: [{ name: 'when', value: 'rain' }, { name: 'target', value: 'ground' }] }]);
+  assert.strictEqual(MV.build(m, { season: 'firstrain', rain: true }).ground[1], puddle);
+  assert.strictEqual(MV.build(m, { season: 'firstrain', rain: false }).ground[1], T0.idx('grass') + 1);
+});
+test('season swap rules change tiles everywhere, keeping flips', () => {
+  const m = testMap(2, 1);
+  m.layers[0].data[1] = (0x80000000 + T0.idx('grass') + 1);          // flipped left-right
+  const v = FS.MapView.build(m, { season: 'harmattan' });
+  const to = T0.swaps.harmattan[T0.idx('grass')];
+  assert.ok(to !== undefined, 'the Harmattan has a rule for grass');
+  assert.strictEqual(v.ground[0], to + 1);
+  assert.strictEqual(v.ground[1], 0x80000000 + to + 1, 'still flipped');
+  assert.strictEqual(FS.MapView.build(m, { season: 'firstrain' }).ground[0], T0.idx('grass') + 1);
+});
+test('autotiles: 47 pieces, chosen by the neighbours; the sea follows the tide', () => {
+  const ocean = T0.autotiles.ocean;
+  assert.strictEqual(new Set(ocean.table).size, 47);
+  assert.ok(ocean.table.every(i => T0.collides.indexOf(i) !== -1), 'water pieces are solid');
+  const o = ocean.base + 1;
+  const m = testMap(3, 3);
+  [0, 1, 2].forEach(i => { m.layers[0].data[i] = o; });                // the top row is sea
+  const v = FS.MapView.build(m, {});
+  assert.strictEqual(v.ground[1], ocean.table[1 | 2 | 4 | 64 | 128] + 1, 'sea above (off the map), sea left and right, land below');
+  assert.strictEqual(v.ground[4], T0.idx('grass') + 1, 'land stays land');
+  // A tide layer: the middle row floods from level 1 (height 2), the bottom row only at level 4 (height 5)
+  m.layers.push({ name: 'tide', type: 'tilelayer', data: [0, 0, 0, 100004, 100004, 100004, 100007, 100007, 100007] });
+  const low = FS.MapView.build(m, { tide: 0 }), mid = FS.MapView.build(m, { tide: 2 }), high = FS.MapView.build(m, { tide: 4 });
+  assert.ok(!FS.MapView.isAutotile(FS.MapView.index(low.ground[4])), 'low tide: dry');
+  assert.ok(FS.MapView.isAutotile(FS.MapView.index(mid.ground[4])) && !FS.MapView.isAutotile(FS.MapView.index(mid.ground[7])), 'mid tide');
+  assert.ok(FS.MapView.isAutotile(FS.MapView.index(high.ground[7])), 'high tide: all sea');
+  // Foam sits on the water's edge, facing the land
+  const foam = FS.MapView.shoreFoam(low, 3, 3);
+  assert.deepStrictEqual(foam, [{ x: 1, y: 0, side: 'south' }]);
+  assert.deepStrictEqual(FS.MapView.shoreFoam(high, 3, 3), [], 'no shore when it is all sea');
+});
+test('flip flags become Phaser rotations like Phaser\'s own Tiled reader', () => {
+  const tt = FS.MapView.tileTransform;
+  assert.deepStrictEqual(tt(5), { index: 5, flipX: false, rotation: 0 });
+  assert.deepStrictEqual(tt(0x80000000 + 5), { index: 5, flipX: true, rotation: 0 });
+  assert.deepStrictEqual(tt(0xA0000000 + 5), { index: 5, flipX: false, rotation: Math.PI / 2 });   // rotated right
+  assert.deepStrictEqual(tt(0xC0000000 + 5), { index: 5, flipX: false, rotation: Math.PI });
 });
 
 console.log('\nSave format');

@@ -34,8 +34,10 @@
         stranger: ['kadi_s1', 'kadi_s2'],
         friend: ['kadi_f1', 'kadi_f2'],
         close: ['kadi_c1'],
-        rainy: ['kadi_rainy'],
-        dry: ['kadi_dry']
+        firstrain: ['kadi_rainy'],
+        bigrain: ['kadi_bigrain'],
+        harmattan: ['kadi_dry'],
+        warm: ['kadi_dry']
       },
       metFlag: 'metKadi'
     },

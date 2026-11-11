@@ -34,9 +34,13 @@ command open while you work; close it (or press Ctrl+C) when you're done.
   **Change the size**. Everything on the map moves with the tiles. A map can be up to 255 × 255
   squares.
 - **Layers** (top): **Ground** (grass, paths, water, floors), **Decoration** (things on the ground),
-  and **Over the player** (roofs and tree tops, drawn over the player). Keys 1, 2, 3.
+  and **Over the player** (roofs and tree tops, drawn over the player). Keys 1, 2, 3. Next to them:
+  layers shown **only sometimes** (below).
 - **Tiles** (right): click a tile, or drag over several, then paint. A red corner means the tile is
-  solid. **Solid / walkable** changes that for the chosen tiles on every map.
+  solid; a blue corner, animated. **Solid / walkable** changes that for the chosen tiles on every map.
+- **Flip and turn:** **X** flips the brush left-right, **Y** up-down, **Z** turns it a quarter (or the
+  ↔ ↕ ⟳ buttons). It works for stamps and copied areas too. Flipping left-right almost always looks
+  right; turned tiles can have their light and shadow on the wrong side.
 - **Stamps** (right): whole objects, like a hut or a mango tree, painted on all three layers at once.
   Make your own: **Select** a part of a map, then **Save as a stamp…**. Right-click a stamp to remove it.
 
@@ -50,11 +54,18 @@ command open while you work; close it (or press Ctrl+C) when you're done.
 | Erase | E | Clears tiles on the layer you're painting. |
 | Select | S | Drag to select. Ctrl+C copies every layer, Ctrl+V pastes, Delete clears the layer (Shift+Delete: all of them). |
 | Collision | C | Red squares block the player. Click to block a square by hand, right-click (or Shift) to open it whatever is there, Alt+click to undo either. |
+| Tide | H | Paint how high each square is, 1 to 5 (keys 1-5 while it's chosen): see "The sea and the tide". Right-click: not reached by the tide. |
 | Objects | O | Click an object to change it, drag to move it, drag its corner to resize. Click an empty square to add one. |
 
 Move around with Space+drag or the middle mouse button; zoom with the mouse wheel (or + and −).
 Ctrl+Z and Ctrl+Y undo and redo, and Ctrl+S saves. The bottom line says which square the mouse is on
 and what's there.
+
+### Preview
+
+Tick **Preview** (or press P) to see the map as the game shows it: choose the **season**, **rain**,
+**night** and the **tide** level (0 lowest, 4 highest), with animations playing. The season's swap
+rules, the layers shown only sometimes, the sea at that tide and the shore foam all show.
 
 ### Objects
 
@@ -68,7 +79,8 @@ and what's there.
 | bed | Sleep here to end the day. |
 | sign | Shows words: the key of its text in `src/data/strings.js`. |
 | critter | A hen, chick or crab that wanders around. |
-| npc | A villager (for later). |
+| npc | A villager: its key in `src/data/npcs.js`. |
+| anim | An animated object from the tile list (a school of fish, washing on a line...), standing on the bottom middle of its box. |
 
 ### Buildings and their rooms
 
@@ -79,6 +91,79 @@ To add a room for a building: on the outside map, click the building's door squa
 **Add an interior…**. Choose the interiors map (or a new one), a name and a size. The map maker makes
 the room with walls, a floor and a doorway, and links the door both ways. Then paint the room as you
 like. Rooms mustn't overlap; keep a gap between them.
+
+## Layers shown only sometimes
+
+**New…** (next to the layer buttons) makes a layer that's shown only when something is true, and
+says which layer it draws on. While it's shown, its tiles replace that layer's tiles: puddles in the
+rain, a flooded path, a season's look for a few squares, lamps at night. **Layer…** changes or
+deletes it. Conditions:
+
+| Shown when | Means |
+|---|---|
+| `rain`, `dry` | It's raining (outdoors) / it isn't |
+| `night`, `day` | From dusk to first light / the rest |
+| `season:harmattan` | In that season (`firstrain`, `bigrain`, `harmattan`, `warm`; several with commas: `season:harmattan,warm`) |
+| `tide:0` or `tide:0-1` | At that tide level, or levels (0 lowest, 4 highest) |
+
+Join several with `&` for "all of them": `rain&night`.
+
+## The sea and the tide
+
+Paint the sea with an **autotile** such as `ocean` (it's one tile in the palette; the edges and
+corners choose themselves). For a sea that comes and goes, use the **Tide** tool to paint how high
+each square of the shore is:
+
+| Height | Under the sea |
+|---|---|
+| 1 | always |
+| 2 | from tide level 1 |
+| 3 | from level 2 (mid tide) |
+| 4 | from level 3 |
+| 5 | only at the highest tides |
+
+The game works out the tide from the moon, the day and the time (see DESIGN.md), changes the
+sea's edge, moves the shore foam along it and stops the player walking into the water. In **This
+map**, set how much **later** and how big the tide is here than on the open coast (a creek: later
+and smaller) and which autotile the **sea** is. **Problems** warns about a spawn the tide covers.
+
+## The tile list
+
+Every tile the maps can use is in the tile list, `maps-src/tiles.json`: where its picture comes from
+in `art-src/` (a sheet, a column, a row), whether it's solid, its recolouring and animation. The
+map maker draws the game's `assets/tiles.png` from it when you save. **To add or redraw tiles you
+need the art packs in `art-src/`** on your computer; without them, you can still paint and change
+solid, names, seasons and shore foam.
+
+Under the palette:
+
+- **Rename…**, **Recoloured copy…** (new tiles with colours swapped: choose a recolouring or make one
+  from "from > to" colour pairs) and **Remove…** (only tiles no map or stamp uses).
+
+**Add tiles from the art** (right): choose a sheet, drag over its squares, then:
+
+- **Add as new tiles…**: they go at the end of the list (and, if you like, become a stamp).
+- **Use for the chosen tile**: give the tile chosen in the palette this picture. This works for
+  the tiles the game's code uses (heaps, crop stages, floors...): those can't be removed or renamed,
+  but their pictures can change. Placeholders drawn for the game are in `art-src/own/`.
+- **Animate the chosen tile…**: it shows these squares in turn.
+- **Add as an autotile…**: an RPG Maker-style autotile, its 2 × 3-tile block starting at the
+  selection's top-left, with animation frames side by side (like the Provence ocean).
+- **Add as an animated object…**: frames of any size (shore foam, fish, washing), to place with the
+  Objects tool (kind **anim**).
+
+**Seasons**: each season can show some tiles as others on every map (dry grass in the Harmattan).
+Choose a tile in the palette, press **From**, choose another, press **To**, then **Add the rule**.
+
+**Animated objects and shore foam**: the objects in the list, and which foam object goes on each
+side of the water (by where the land is).
+
+## Looks
+
+**Looks…** (top) opens the characters' page: every skin tone, hairstyle and colour, and outfit, drawn
+with the game's own recolouring. Try a look, **Give this look** to a villager, change an outfit's
+colours (the pack's palette is offered) or add a **New outfit…**. **Save** writes
+`src/data/appearance.js` and `src/data/npcs.js`.
 
 ## Saving and checking
 
@@ -92,7 +177,9 @@ ready-made character. Nothing is saved in that tab, so it never changes a real f
 
 ## Sharing your maps
 
-In GitHub Desktop, your changed maps show up as changed files (`maps-src/…`, `src/data/maps.js`).
+In GitHub Desktop, your changed maps show up as changed files (`maps-src/…`, `src/data/maps.js`, and
+after tile changes `src/data/tiles.js`, `assets/tiles.png`, `assets/objects.png`). The art in
+`art-src/petixel/` and `art-src/made/` never shows up there: it stays on your computer.
 Make a branch, commit them with a short note ("Add the beach"), and publish it to make a pull request.
 The game's checks run on it, including the map checks, and you merge it when **Checks passed** passes.
 
@@ -101,7 +188,8 @@ The game's checks run on it, including the map checks, and you merge it when **C
 - The maps are in [Tiled](https://www.mapeditor.org/)'s format, so you can still open `maps-src/*.tmj`
   in Tiled. Save from the map maker afterwards so `src/data/maps.js` is rebuilt (or run
   `python tools/map_maker.py --build`).
-- The map maker can only use tiles that are already in `assets/tiles.png`. New tiles come from the art
-  packs with `tools/build_assets.py`, which needs the packs on your computer.
+- New tiles come from the pictures in `art-src/` (see The tile list). Item icons, characters and window
+  art come from `tools/build_assets.py`, which needs Pillow (`pip install pillow`) and the packs.
+- The game's code finds the tiles it uses by name, so the tile list can grow and change order.
 - The farm, the house and their names are used by the game's code, so they can't be renamed or deleted.
 - More than about 250 objects on one map can be slow on old phones; the map maker says so.

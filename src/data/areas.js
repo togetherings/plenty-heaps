@@ -9,6 +9,9 @@
  *            during a mid-day save. Never reuse the id of a removed map.
  *   key      the map's file name (farm.tmj -> "farm").
  *   outdoor  outdoor areas show rain and get darker at night.
+ *   tideDelay, tideSize, tideWater   for maps with a tide layer: how much later
+ *            (minutes) and how big (1 = the open coast) the tide is here, and
+ *            which autotile the sea is (default "ocean"). See sky.js, mapView.js.
  *
  * An outside area and the rooms of its buildings are two maps: the outside, and
  * one "interiors" map holding every room, each marked by a "room" object.
@@ -27,11 +30,16 @@
  *             facing.
  *   critter   an animal that wanders nearby (decoration, not saved).
  *             Property: kind = crab / hen / chick (see BootScene CRITTERS).
+ *   anim      an animated object (a school of fish, drying clothes...), standing
+ *             on the bottom of its box. Property: sprite = an object in the
+ *             map maker's tile list (FarmSim.Tiles.objects).
  *   room      a room of an interiors map: the camera stays inside the room
  *             the player is in, so the other rooms are never seen.
  *
  * MAP LAYERS: ground, decor (drawn under characters), above (drawn over
- * them: roofs, tree tops), collision (optional, never drawn) and objects.
+ * them: roofs, tree tops), collision (optional, never drawn), tide (optional:
+ * how high each square is, for the sea) and objects. Layers with a "when"
+ * property are shown only sometimes (mapView.js).
  * Tiles with the "collides" property block movement on any of the tile
  * layers. The collision layer changes single squares: its "block" tile blocks
  * a square, its "open" tile lets the player walk on a square whatever is there.
@@ -40,7 +48,11 @@
   'use strict';
 
   FS.Areas = FS.makeRegistry('Areas', (FS.MapList || []).map(function (m) {
-    return { id: m.id, key: m.key, map: m.key, outdoor: !!m.outdoor };
+    return {
+      id: m.id, key: m.key, map: m.key, outdoor: !!m.outdoor,
+      // The tide here (sky.js): minutes later than the open coast, and how big (1 = full)
+      tideDelay: m.tideDelay || 0, tideSize: m.tideSize === undefined ? 1 : m.tideSize, tideWater: m.tideWater || ''
+    };
   }), 63);
 
   // Where a brand-new game starts and where the player wakes up each morning.

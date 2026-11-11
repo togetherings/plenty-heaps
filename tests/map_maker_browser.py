@@ -1,7 +1,8 @@
 """
 Uses the map maker in a browser, on a copy of the game (your maps are never changed):
-paints a tile, adds an interior to the village with the dialog, saves, then plays the new
-room and walks out of its door back to the village.
+paints a flipped tile, adds a layer shown only in the rain and a tide, adds an interior to the
+village with the dialog, saves, then plays the new room and walks out of its door back to the
+village, and plays the village (with its new tide) with the WebGL and the Canvas renderers.
 
     pip install playwright && python -m playwright install chromium
     python tests/map_maker_browser.py [screenshots-folder]
@@ -43,16 +44,64 @@ def main():
             page.wait_for_function("window.mapMaker && window.mapMaker.current === 'farm'")
             assert "No problems found" in page.locator("#problems").inner_text()
 
-            # Paint a rock on the decoration layer
+            # Paint a rock, flipped left-right (X), on the decoration layer
             page.click("text=Decoration")
             idx, cols = page.evaluate("[mapMaker.project.tiles.names.rock, mapMaker.project.tiles.columns]")
             box = page.locator("#palette").bounding_box()
-            page.mouse.click(box["x"] + (idx % cols) * 32 + 16, box["y"] + (idx // cols) * 32 + 16)
+            z = box["width"] / (cols * 16)      # the palette is scaled to fit its panel
+
+            def tile_at(i):
+                return box["x"] + ((i % cols) + 0.5) * 16 * z, box["y"] + ((i // cols) + 0.5) * 16 * z
+            page.mouse.click(*tile_at(idx))
+            page.keyboard.press("x")
             view = page.locator("#view").bounding_box()
             page.mouse.click(view["x"] + view["width"] / 2 + 64, view["y"] + view["height"] / 2)
-            assert page.locator("#status").inner_text() == "Not saved yet"
+            assert page.locator("#status").inner_text().startswith("Not saved yet") or "flipped" in page.locator("#status").inner_text()
+
+            # A layer shown only in the rain, with a sand puddle on it
+            page.click("#layers >> text=New…")
+            page.locator("#dialog input").nth(0).fill("puddles")
+            page.locator("#dialog input").nth(1).fill("rain")
+            page.locator("#dialog button[value=ok]").click()
+            page.wait_for_function("document.querySelector('#layers select').value === 'puddles'")
+            page.wait_for_timeout(200)     # the header may have changed size: measure again
+            sand, = page.evaluate("[mapMaker.project.tiles.names.sand]")
+            box, view = page.locator("#palette").bounding_box(), page.locator("#view").bounding_box()
+            page.mouse.click(*tile_at(sand))
+            page.mouse.click(view["x"] + view["width"] / 2 + 32, view["y"] + view["height"] / 2 + 32)
+            page.wait_for_function("mapMaker.project.maps.farm.layers.some(l => l.name === 'puddles' && l.data.indexOf(%d) !== -1)" % (sand + 1), timeout=5000)
             if shots:
                 page.screenshot(path=os.path.join(shots, "map-maker-1.png"))
+
+            # The village gets a sea and a tide: ocean on the bottom rows, tide heights above them
+            page.locator(".maps li", has_text="village").click()
+            page.evaluate("""() => {
+              const P = mapMaker.project, m = P.maps.village, w = m.width, h = m.height;
+              const ground = m.layers.find(l => l.name === 'ground'), ocean = P.tiles.names.ocean + 1;
+              for (let y = h - 3; y < h; y++) for (let x = 0; x < w; x++) ground.data[y * w + x] = ocean;
+            }""")
+            page.keyboard.press("h")
+            page.evaluate("""() => {
+              const P = mapMaker.project, m = P.maps.village, w = m.width, h = m.height;
+              const tide = { name: 'tide', type: 'tilelayer', data: new Array(w * h).fill(0) };
+              for (let x = 0; x < w; x++) { tide.data[(h - 4) * w + x] = P.tideFirstgid + 1; tide.data[(h - 5) * w + x] = P.tideFirstgid + 3; }
+              m.layers.push(tide);
+            }""")
+            page.keyboard.press("p")
+            page.evaluate("mapMaker.setPreview('tide', 4)")
+            if shots:
+                page.screenshot(path=os.path.join(shots, "map-maker-1-tide.png"))
+            page.keyboard.press("p")
+
+            # The Looks page draws every look with the game's own recolouring
+            looks = browser.new_page(viewport={"width": 1400, "height": 860})
+            looks.on("pageerror", lambda e: errors.append("looks: %s" % e))
+            looks.goto(base + "tools/map-maker/looks.html")
+            looks.wait_for_function("window.looks", timeout=10000)
+            assert looks.locator("#skins figure").count() == 8, "a figure per skin tone"
+            if shots:
+                looks.screenshot(path=os.path.join(shots, "map-maker-looks.png"))
+            looks.close()
 
             # An interior for the village: right-click picks the door square, then the dialog
             page.locator(".maps li", has_text="village").click()
@@ -71,8 +120,13 @@ def main():
             objs = {o["name"]: o for o in [l for l in inside["layers"] if l["name"] == "objects"][0]["objects"]}
             assert set(objs) == {"shop", "shop_in", "shop_exit"}, objs
             farm = json.load(open(os.path.join(root, "maps-src", "farm.tmj")))
-            rock = idx + 1
-            assert rock in [l for l in farm["layers"] if l["name"] == "decor"][0]["data"], "the rock was saved"
+            layers = {l["name"]: l for l in farm["layers"]}
+            assert 0x80000000 + idx + 1 in layers["decor"]["data"], "the flipped rock was saved"
+            puddles = layers["puddles"]
+            assert {p["name"]: p["value"] for p in puddles["properties"]} == {"when": "rain", "target": "ground"}, puddles["properties"]
+            assert sand + 1 in puddles["data"], "the puddle was painted on its layer"
+            village = json.load(open(os.path.join(root, "maps-src", "village.tmj")))
+            assert any(l["name"] == "tide" for l in village["layers"]), "the tide was saved"
             check = subprocess.run([sys.executable, os.path.join(root, "tools", "map_maker.py"), "--check"],
                                    stdout=subprocess.PIPE, universal_newlines=True)
             assert check.returncode == 0, check.stdout
@@ -93,6 +147,17 @@ def main():
             game.wait_for_timeout(900)
             game.keyboard.up("ArrowDown")
             game.wait_for_function("FarmSim.currentArea.key === 'village'", timeout=5000)
+
+            # The village with its tide, at high water, with both renderers
+            for mode in ("", "&canvas"):
+                game.goto(base + "index.html?at=village,12,20" + mode)
+                game.wait_for_function("window.FarmSim && FarmSim.currentArea && FarmSim.currentArea.key === 'village'", timeout=20000)
+                game.evaluate("FarmSim.Session.state.time = 12 * 60 + 40")
+                game.wait_for_timeout(1500)
+                tide = game.evaluate("[FarmSim.game.scene.getScene('World').conditions.tide, FarmSim.game.scene.getScene('World').foam.length]")
+                assert tide[0] == 4 and tide[1] > 0, tide
+                if shots:
+                    game.screenshot(path=os.path.join(shots, "map-maker-4-tide%s.png" % ("-canvas" if mode else "")))
             browser.close()
     finally:
         server.terminate()

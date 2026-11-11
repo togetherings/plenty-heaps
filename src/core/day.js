@@ -5,11 +5,15 @@
  * This is the heart of the farming loop:
  *
  *   1. Pay out what was put in the shipping bin.
- *   2. Watered crops grow one day; all soil dries out.
+ *   2. If the day's rain added up to enough to water (weather.js), the field
+ *      is watered - even rain that fell after the player went to bed.
+ *      Watered crops grow one day; all soil dries out.
  *   3. Move to the next day. If the season changed, out-of-season crops wither.
- *   4. If it rains on the new day, all tilled soil is watered.
- *   5. Villagers' "talked today" / "gift today" flags reset.
- *   6. The player wakes at home with energy restored.
+ *   4. Villagers' "talked today" / "gift today" flags reset.
+ *   5. The player wakes at home with energy restored.
+ *
+ * Rain on the new day waters the field when enough has fallen (WorldScene
+ * checks as the clock runs).
  *
  * Returns a summary the UI can show ("You earned 120 cowries...").
  */
@@ -28,7 +32,8 @@
       FS.Wallet.add(state, 'cowrie', state.shipped);
       state.shipped = 0;
 
-      // 2. Growth
+      // 2. Growth (after the rest of the day's rain)
+      if (FS.Weather.watered(state.seed, state.day)) FS.Farming.rainWater(state);
       state.farm.tiles.forEach(FS.Farming.growOvernight);
 
       // 3. New day, maybe a new season
@@ -47,19 +52,16 @@
         });
       }
 
-      // 4. Morning rain waters the field
-      if (FS.State.isRaining(state)) {
-        summary.rain = true;
-        state.farm.tiles.forEach(function (t) { if (t.tilled) t.watered = true; });
-      }
-
-      // 5. Villagers
+      // 4. Villagers
       state.npcs.forEach(function (n) { n.talked = false; n.gifted = false; });
 
-      // 6. Wake up at home
+      // 5. Wake up at home
       state.energy = passedOut ? C.PASS_OUT_ENERGY : C.MAX_ENERGY;
       state.time = C.DAY_START_MIN;
       state.pos = null;
+      // Rain overnight that has already watered the new day's field
+      if (FS.State.rainHasWatered(state)) FS.Farming.rainWater(state);
+      summary.rain = FS.State.isRaining(state);
 
       return summary;
     }

@@ -47,8 +47,8 @@
       if (t.crop !== FS.CROP_NONE) return 'occupied';
       if (t.tilled) return 'nothing';
       t.tilled = true;
-      // If it's raining, freshly tilled soil is wet straight away.
-      if (FS.State.isRaining(state)) t.watered = true;
+      // If today's rain has already watered the field, new heaps are wet too.
+      if (FS.State.rainHasWatered(state)) t.watered = true;
       return 'tilled';
     },
 
@@ -94,6 +94,13 @@
       return { code: 'harvested', item: crop.produce, qty: crop.yield };
     },
 
+    /** Rain has watered the field: every tilled tile is wet. Returns how many got wet. */
+    rainWater: function (state) {
+      let n = 0;
+      state.farm.tiles.forEach(function (t) { if (t.tilled && !t.watered) { t.watered = true; n++; } });
+      return n;
+    },
+
     /** Called overnight (see day.js) for each tile. */
     growOvernight: function (tile) {
       const crop = Farming.cropOf(tile);
@@ -103,25 +110,25 @@
 
     // ----------------------------------------------------------------- display
     /**
-     * Which picture in tiles.png shows this tile's plant, or -1 for none.
-     * Four stages: seed (just planted), sprout, growing, ripe.
+     * Which tile shows this field tile's plant, or -1 for none. Four stages:
+     * seed (just planted), sprout, growing, ripe: the tiles crop_<key>_0 to _3.
      */
     plantFrame: function (tile) {
       if (tile.crop === FS.CROP_NONE) return -1;
-      if (tile.crop === FS.CROP_WITHERED) return FS.Tiles.WITHERED;
+      if (tile.crop === FS.CROP_WITHERED) return FS.Tiles.idx('crop_withered');
       const crop = FS.Crops.byId(tile.crop);
       if (!crop) return -1;
       let stage;
       if (tile.growth >= crop.growDays) stage = 3;
       else if (tile.growth === 0) stage = 0;
       else stage = tile.growth * 2 < crop.growDays ? 1 : 2;
-      return FS.Tiles.CROP_FIRST[crop.key] + stage;
+      return FS.Tiles.idx('crop_' + crop.key + '_' + stage);
     },
 
     /** Which picture shows the soil under it, or -1 for untilled ground. */
     soilFrame: function (tile) {
       if (!tile.tilled) return -1;
-      return tile.watered ? FS.Tiles.SOIL_WET : FS.Tiles.SOIL;
+      return FS.Tiles.idx(tile.watered ? 'heap_wet' : 'heap');
     }
   };
 

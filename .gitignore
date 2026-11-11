@@ -1,7 +1,10 @@
-# Purchased Petixel art packs: keep them on your own computer only. The licence
-# doesn't allow publishing them, and this repository is public. The game's own
-# images (assets/) are built from them with tools/build_assets.py.
-art-src/
+# Purchased Petixel art packs (art-src/petixel/) and pictures made from them
+# (art-src/made/): keep them on your own computer only. The licence doesn't
+# allow publishing them, and this repository is public. The game's images
+# (assets/) are built from them by the map maker and tools/build_assets.py.
+# The game's own drawings (art-src/own/) are shared.
+art-src/*
+!art-src/own/
 
 # Builds
 dist/
