@@ -27,4 +27,4 @@ concurrency:
 jobs:
   pages:
     name: Pages
-    uses: togetherings/edugame-kit/.github/workflows/game-pages.yml@v0.3.0
+    uses: togetherings/edugame-kit/.github/workflows/game-pages.yml@v0.3.1
