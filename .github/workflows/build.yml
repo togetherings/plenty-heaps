@@ -23,7 +23,7 @@ permissions:
 jobs:
   kit:
     name: Kit
-    uses: togetherings/edugame-kit/.github/workflows/game.yml@v0.3.0
+    uses: togetherings/edugame-kit/.github/workflows/game.yml@v0.3.1
     with:
       # The game's own tests (saves, farming, seasons, maps; no Phaser needed), and the map
       # maker's checks: every warp leads somewhere, spawns aren't in walls, maps.js is up to date.
